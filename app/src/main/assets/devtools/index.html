@@ -21,9 +21,10 @@
     .nav-item .badge { margin-left: auto; background: #2f3742; color: #aab2bf; border-radius: 10px; padding: 1px 7px; font-size: 11px; }
     .nav-item.active .badge { background: #4c8bf5; color: #fff; }
     .foot { margin-top: auto; padding: 10px 14px; font-size: 11px; color: #5c6672; border-top: 1px solid #2a2f38; font-family: ui-monospace, monospace; }
-    .cap { padding: 8px; }
-    .capbtn { width: 100%; background: #252b34; border: 1px solid #313945; color: #cfd4dc; border-radius: 8px; padding: 7px; cursor: pointer; font-size: 13px; }
+    .cap { padding: 8px; display: flex; flex-direction: column; gap: 6px; }
+    .capbtn { background: #252b34; border: 1px solid #313945; color: #cfd4dc; border-radius: 8px; padding: 7px; cursor: pointer; font-size: 13px; text-align: center; text-decoration: none; display: block; box-sizing: border-box; }
     .capbtn:hover { background: #2d353f; }
+    .capbtn.dl { color: #7bd88f; }
 
     .main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
     .toolbar { height: 44px; flex: 0 0 44px; display: flex; align-items: center; gap: 10px; padding: 0 14px; border-bottom: 1px solid #2a2f38; background: #1e2229; }
@@ -89,7 +90,11 @@
         <div class="nav-item" id="nav-prefs" onclick="showView('prefs')"><span class="ico">⚙️</span> Preferences</div>
         <div class="nav-item" id="nav-db" onclick="showView('db')"><span class="ico">🗄️</span> Databases</div>
       </div>
-      <div class="cap"><button class="capbtn" onclick="screenshot()">📷 Screenshot</button></div>
+      <div class="cap">
+        <button class="capbtn" onclick="screenshot()">📷 Screenshot</button>
+        <button class="capbtn" id="recbtn" onclick="toggleRecord()">⏺ Record</button>
+        <a class="capbtn dl" id="recdl" href="api/record/latest" download="blackbox.mp4" style="display:none">⬇ Save recording</a>
+      </div>
       <div class="foot" id="devinfo">debug · 127.0.0.1:8080</div>
     </div>
 
@@ -313,9 +318,33 @@
       } catch (e) { alert('screenshot error'); }
     }
 
+    let recState = 'idle';
+    async function toggleRecord() {
+      if (recState === 'recording') {
+        await fetch('api/record/stop', { method: 'POST' });
+      } else {
+        await fetch('api/record/start', { method: 'POST' });
+        alert('기기 화면에서 "지금 시작"(Start now)을 눌러 녹화를 허용하세요.');
+      }
+      recTick();
+    }
+    async function recTick() {
+      try {
+        const s = await (await fetch('api/record/status')).json();
+        recState = s.state;
+        document.getElementById('recbtn').textContent =
+          s.state === 'recording' ? '⏹ Stop recording'
+          : s.state === 'requesting' ? '⏳ Waiting for device…'
+          : '⏺ Record';
+        document.getElementById('recdl').style.display = s.hasRecording ? 'block' : 'none';
+      } catch (e) {}
+    }
+
     setInterval(() => { if (view === 'network') tickNetwork(); }, 1000);
+    setInterval(recTick, 1500);
     loadDevice();
     tickNetwork();
+    recTick();
   </script>
 </body>
 </html>

@@ -6,6 +6,7 @@ import com.treemiddle.blackbox.db.DbReader
 import com.treemiddle.blackbox.device.DeviceInfo
 import com.treemiddle.blackbox.prefs.PrefsReader
 import com.treemiddle.blackbox.prefs.PrefsWriter
+import com.treemiddle.blackbox.record.Recorder
 import com.treemiddle.blackbox.screen.ScreenCapture
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
@@ -55,6 +56,29 @@ object BlackBoxServer {
                                 )
                             } else {
                                 call.respondBytes(png, ContentType.Image.PNG)
+                            }
+                        }
+                        post("/api/record/start") {
+                            Recorder.requestStart(context)
+                            call.respondText(Recorder.statusJson(), ContentType.Application.Json)
+                        }
+                        post("/api/record/stop") {
+                            Recorder.stop(context)
+                            call.respondText(Recorder.statusJson(), ContentType.Application.Json)
+                        }
+                        get("/api/record/status") {
+                            call.respondText(Recorder.statusJson(), ContentType.Application.Json)
+                        }
+                        get("/api/record/latest") {
+                            val recording = Recorder.file
+                            if (recording == null || !recording.exists()) {
+                                call.respondText(
+                                    JSONObject().put("error", "no recording").toString(),
+                                    ContentType.Application.Json,
+                                    HttpStatusCode.NotFound,
+                                )
+                            } else {
+                                call.respondBytes(recording.readBytes(), ContentType.Video.MP4)
                             }
                         }
                         get("/api/network") {
