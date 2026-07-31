@@ -6,11 +6,13 @@ import com.treemiddle.blackbox.db.DbReader
 import com.treemiddle.blackbox.device.DeviceInfo
 import com.treemiddle.blackbox.prefs.PrefsReader
 import com.treemiddle.blackbox.prefs.PrefsWriter
+import com.treemiddle.blackbox.screen.ScreenCapture
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.cio.CIO
 import io.ktor.server.engine.embeddedServer
 import io.ktor.server.request.receiveText
+import io.ktor.server.response.respondBytes
 import io.ktor.server.response.respondText
 import io.ktor.server.routing.get
 import io.ktor.server.routing.post
@@ -42,6 +44,18 @@ object BlackBoxServer {
                         }
                         get("/api/device") {
                             call.respondText(DeviceInfo.toJson(context), ContentType.Application.Json)
+                        }
+                        get("/api/screenshot") {
+                            val png = ScreenCapture.capturePng()
+                            if (png == null) {
+                                call.respondText(
+                                    JSONObject().put("error", "no visible activity window").toString(),
+                                    ContentType.Application.Json,
+                                    HttpStatusCode.ServiceUnavailable,
+                                )
+                            } else {
+                                call.respondBytes(png, ContentType.Image.PNG)
+                            }
                         }
                         get("/api/network") {
                             call.respondText(NetworkStore.toJson(), ContentType.Application.Json)

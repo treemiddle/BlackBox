@@ -21,6 +21,9 @@
     .nav-item .badge { margin-left: auto; background: #2f3742; color: #aab2bf; border-radius: 10px; padding: 1px 7px; font-size: 11px; }
     .nav-item.active .badge { background: #4c8bf5; color: #fff; }
     .foot { margin-top: auto; padding: 10px 14px; font-size: 11px; color: #5c6672; border-top: 1px solid #2a2f38; font-family: ui-monospace, monospace; }
+    .cap { padding: 8px; }
+    .capbtn { width: 100%; background: #252b34; border: 1px solid #313945; color: #cfd4dc; border-radius: 8px; padding: 7px; cursor: pointer; font-size: 13px; }
+    .capbtn:hover { background: #2d353f; }
 
     .main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
     .toolbar { height: 44px; flex: 0 0 44px; display: flex; align-items: center; gap: 10px; padding: 0 14px; border-bottom: 1px solid #2a2f38; background: #1e2229; }
@@ -86,6 +89,7 @@
         <div class="nav-item" id="nav-prefs" onclick="showView('prefs')"><span class="ico">⚙️</span> Preferences</div>
         <div class="nav-item" id="nav-db" onclick="showView('db')"><span class="ico">🗄️</span> Databases</div>
       </div>
+      <div class="cap"><button class="capbtn" onclick="screenshot()">📷 Screenshot</button></div>
       <div class="foot" id="devinfo">debug · 127.0.0.1:8080</div>
     </div>
 
@@ -291,6 +295,22 @@
         const d = await (await fetch('api/device')).json();
         document.getElementById('devinfo').textContent = '📱 ' + d.model + ' · Android ' + d.android + ' (API ' + d.sdk + ')';
       } catch (e) {}
+    }
+
+    async function screenshot() {
+      try {
+        const res = await fetch('api/screenshot');
+        if (!res.ok) { alert('screenshot failed — bring the app to the foreground on the device'); return; }
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'blackbox-' + Date.now() + '.png';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+      } catch (e) { alert('screenshot error'); }
     }
 
     setInterval(() => { if (view === 'network') tickNetwork(); }, 1000);
