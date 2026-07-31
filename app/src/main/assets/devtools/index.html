@@ -142,7 +142,7 @@
         <div class="toolbar">
           <span class="tb-title">Databases</span>
           <button class="tbtnx" onclick="tickDb()">↻ Refresh</button>
-          <button class="tbtnx" id="db-live" onclick="toggleDbLive()">◻ Live</button>
+          <button class="tbtnx" id="db-live" onclick="toggleDbLive()">◻ Live Updates</button>
           <span class="spacer"></span>
           <span class="muted" id="db-count"></span>
         </div>
@@ -276,7 +276,7 @@
     function toggleDbLive() {
       dbLive = !dbLive;
       const btn = document.getElementById('db-live');
-      btn.textContent = dbLive ? '◉ Live' : '◻ Live';
+      btn.textContent = dbLive ? '◉ Live Updates' : '◻ Live Updates';
       btn.classList.toggle('on', dbLive);
       if (dbLive && dbCurrent) loadTable(dbCurrent.db, dbCurrent.table);
     }
