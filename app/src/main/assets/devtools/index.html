@@ -5,176 +5,288 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>BlackBox</title>
   <style>
-    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; margin: 0; background: #0b0d10; color: #e6e6e6; }
-    header { padding: 10px 16px; background: #14181d; border-bottom: 1px solid #232a31; font-size: 14px; display: flex; align-items: center; gap: 16px; }
-    .tabs { display: flex; gap: 4px; }
-    .tab { padding: 4px 12px; border-radius: 6px; cursor: pointer; color: #8b95a1; }
-    .tab.active { background: #222a31; color: #e6e6e6; }
-    .muted { color: #8b95a1; font-size: 12px; }
-    table { width: 100%; border-collapse: collapse; font-size: 13px; }
-    th, td { text-align: left; padding: 8px 12px; border-bottom: 1px solid #1c2228; vertical-align: top; }
-    th { color: #8b95a1; font-weight: 600; }
-    tbody tr.row:hover { background: #14181d; cursor: pointer; }
-    .method { color: #7bd88f; font-weight: 600; }
-    .ok { color: #7bd88f; } .warn { color: #ffd166; } .err { color: #ff6b6b; }
-    .url { color: #cfd6dd; word-break: break-all; }
-    .label { color: #8b95a1; font-size: 11px; text-transform: uppercase; letter-spacing: .04em; margin: 8px 0 4px; }
-    pre { white-space: pre-wrap; word-break: break-all; margin: 0; padding: 12px; background: #0f1317; border-radius: 6px; max-height: 320px; overflow: auto; color: #b9c2cc; }
-    .pfile { margin: 16px 12px 4px; color: #7bd88f; font-weight: 600; font-size: 13px; }
-    .type { color: #8b95a1; }
-    .bar { padding: 10px 12px; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
-    input.pv { background: #0f1317; border: 1px solid #232a31; color: #e6e6e6; border-radius: 4px; padding: 3px 6px; width: 100%; box-sizing: border-box; font-family: inherit; font-size: 13px; }
-    button { background: #222a31; border: 1px solid #2b343d; color: #e6e6e6; border-radius: 4px; padding: 3px 8px; cursor: pointer; font-size: 12px; }
-    button:hover { background: #2b343d; }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; height: 100%; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #1b1e24; color: #d7dae0; font-size: 13px; height: 100vh; overflow: hidden; }
+    .app { display: flex; height: 100vh; }
+
+    .sidebar { width: 212px; flex: 0 0 212px; background: #15171c; border-right: 1px solid #2a2f38; display: flex; flex-direction: column; }
+    .brand { padding: 16px 16px 12px; font-size: 15px; font-weight: 700; display: flex; align-items: center; gap: 9px; }
+    .brand .dot { width: 9px; height: 9px; border-radius: 50%; background: #4c8bf5; box-shadow: 0 0 8px #4c8bf5; }
+    .nav { padding: 6px; }
+    .nav-item { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-radius: 8px; cursor: pointer; color: #9aa2af; margin-bottom: 2px; }
+    .nav-item:hover { background: #1e2229; color: #d7dae0; }
+    .nav-item.active { background: #252b34; color: #fff; }
+    .nav-item .ico { width: 18px; text-align: center; }
+    .nav-item .badge { margin-left: auto; background: #2f3742; color: #aab2bf; border-radius: 10px; padding: 1px 7px; font-size: 11px; }
+    .nav-item.active .badge { background: #4c8bf5; color: #fff; }
+    .foot { margin-top: auto; padding: 10px 14px; font-size: 11px; color: #5c6672; border-top: 1px solid #2a2f38; font-family: ui-monospace, monospace; }
+
+    .main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+    .toolbar { height: 44px; flex: 0 0 44px; display: flex; align-items: center; gap: 10px; padding: 0 14px; border-bottom: 1px solid #2a2f38; background: #1e2229; }
+    .tb-title { font-weight: 600; font-size: 14px; }
+    .spacer { flex: 1; }
+    .search { background: #12141a; border: 1px solid #2a2f38; color: #d7dae0; border-radius: 7px; padding: 5px 10px; width: 220px; font-size: 12px; outline: none; }
+    .search:focus { border-color: #4c8bf5; }
+    .tbtnx { background: #252b34; border: 1px solid #313945; color: #cfd4dc; border-radius: 7px; padding: 5px 12px; cursor: pointer; font-size: 12px; }
+    .tbtnx:hover { background: #2d353f; }
+    .muted { color: #6b7482; font-size: 12px; }
+
+    .view { flex: 1; min-height: 0; display: none; flex-direction: column; }
+    .view.active { display: flex; }
+    .split { flex: 1; min-height: 0; display: flex; }
+    .list { flex: 1; overflow: auto; min-width: 0; }
+    .detail { width: 44%; max-width: 640px; flex: 0 0 44%; overflow: auto; border-left: 1px solid #2a2f38; background: #181b21; }
+    .content { flex: 1; overflow: auto; }
+
+    table.grid { width: 100%; border-collapse: collapse; }
+    table.grid th { position: sticky; top: 0; background: #1e2229; text-align: left; padding: 8px 12px; color: #8a919e; font-weight: 600; border-bottom: 1px solid #2a2f38; font-size: 11px; text-transform: uppercase; letter-spacing: .03em; z-index: 1; }
+    table.grid td { padding: 7px 12px; border-bottom: 1px solid #23272f; }
+    table.net { table-layout: fixed; }
+    table.net td { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    table.grid tr.r { cursor: pointer; }
+    table.grid tr.r:hover { background: #20242c; }
+    table.grid tr.r.sel { background: #26303f; }
+
+    .badge-m { font-weight: 700; font-size: 11px; }
+    .pill { display: inline-block; font-size: 12px; font-weight: 700; }
+    .url-cell { color: #c2c8d2; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+
+    .empty { padding: 40px; text-align: center; color: #5c6672; }
+    .sec { border-bottom: 1px solid #23272f; }
+    .sec-title { padding: 11px 14px 6px; color: #8a919e; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
+    table.kv { width: 100%; border-collapse: collapse; font-size: 12px; }
+    table.kv td { padding: 4px 14px; vertical-align: top; }
+    table.kv td.k { color: #8a919e; white-space: nowrap; width: 1px; padding-right: 16px; font-family: ui-monospace, monospace; }
+    table.kv td.v { color: #d0d5dd; word-break: break-all; font-family: ui-monospace, monospace; }
+    pre.body { margin: 0; padding: 12px 14px; background: #12141a; white-space: pre-wrap; word-break: break-all; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; color: #b9c2cc; }
+
+    .pfile { padding: 14px 14px 6px; color: #7bd88f; font-weight: 700; font-family: ui-monospace, monospace; font-size: 13px; }
+    input.pv { background: #12141a; border: 1px solid #2a2f38; color: #e6e6e6; border-radius: 5px; padding: 4px 7px; width: 100%; box-sizing: border-box; font-family: ui-monospace, monospace; font-size: 12px; }
+    input.pv:focus { border-color: #4c8bf5; outline: none; }
+    .rowbtn { background: #252b34; border: 1px solid #313945; color: #cfd4dc; border-radius: 5px; padding: 3px 9px; cursor: pointer; font-size: 11px; }
+    .rowbtn:hover { background: #2d353f; }
+
+    .dbwrap { display: flex; flex: 1; min-height: 0; }
+    .dbside { width: 240px; flex: 0 0 240px; border-right: 1px solid #2a2f38; overflow: auto; padding: 8px; }
+    .dbmain { flex: 1; overflow: auto; }
+    .dbgroup { margin-bottom: 12px; }
+    .dbname { color: #8a919e; font-size: 11px; text-transform: uppercase; letter-spacing: .03em; padding: 6px 8px; }
+    .chip { display: block; margin: 3px 0; background: #1e2229; border: 1px solid #2a2f38; color: #cfd4dc; border-radius: 6px; padding: 5px 10px; cursor: pointer; font-size: 12px; font-family: ui-monospace, monospace; }
+    .chip:hover { background: #252b34; }
+    .chip.sel { background: #26303f; border-color: #4c8bf5; color: #fff; }
   </style>
 </head>
 <body>
-  <header>
-    <strong>BlackBox</strong>
-    <div class="tabs">
-      <div class="tab active" id="tab-btn-network" onclick="showTab('network')">network</div>
-      <div class="tab" id="tab-btn-prefs" onclick="showTab('prefs')">prefs</div>
-      <div class="tab" id="tab-btn-db" onclick="showTab('db')">db</div>
+  <div class="app">
+    <div class="sidebar">
+      <div class="brand"><span class="dot"></span> BlackBox</div>
+      <div class="nav">
+        <div class="nav-item active" id="nav-network" onclick="showView('network')"><span class="ico">🌐</span> Network <span class="badge" id="net-badge">0</span></div>
+        <div class="nav-item" id="nav-prefs" onclick="showView('prefs')"><span class="ico">⚙️</span> Preferences</div>
+        <div class="nav-item" id="nav-db" onclick="showView('db')"><span class="ico">🗄️</span> Databases</div>
+      </div>
+      <div class="foot">debug · 127.0.0.1:8080</div>
     </div>
-    <span class="muted" id="meta"></span>
-  </header>
 
-  <div id="view-network">
-    <table>
-      <thead><tr><th>#</th><th>method</th><th>code</th><th>ms</th><th>url</th></tr></thead>
-      <tbody id="rows"></tbody>
-    </table>
+    <div class="main">
+      <div class="view active" id="view-network">
+        <div class="toolbar">
+          <span class="tb-title">Network</span>
+          <input class="search" id="net-filter" placeholder="Filter URL…" oninput="onFilter(this.value)">
+          <button class="tbtnx" onclick="clearNetwork()">Clear</button>
+          <span class="spacer"></span>
+          <span class="muted" id="net-count"></span>
+        </div>
+        <div class="split">
+          <div class="list">
+            <table class="grid net">
+              <thead><tr><th style="width:78px">Method</th><th style="width:64px">Status</th><th>URL</th><th style="width:78px">Time</th></tr></thead>
+              <tbody id="net-rows"></tbody>
+            </table>
+          </div>
+          <div class="detail" id="net-detail"><div class="empty">Select a request to inspect</div></div>
+        </div>
+      </div>
+
+      <div class="view" id="view-prefs">
+        <div class="toolbar">
+          <span class="tb-title">Preferences</span>
+          <button class="tbtnx" onclick="tickPrefs()">↻ Refresh</button>
+          <span class="spacer"></span>
+          <span class="muted" id="prefs-count"></span>
+        </div>
+        <div class="content" id="prefs-content"></div>
+      </div>
+
+      <div class="view" id="view-db">
+        <div class="toolbar">
+          <span class="tb-title">Databases</span>
+          <button class="tbtnx" onclick="tickDb()">↻ Refresh</button>
+          <span class="spacer"></span>
+          <span class="muted" id="db-count"></span>
+        </div>
+        <div class="dbwrap">
+          <div class="dbside" id="db-side"></div>
+          <div class="dbmain" id="db-main"><div class="empty">Select a table</div></div>
+        </div>
+      </div>
+    </div>
   </div>
 
-  <div id="view-prefs" style="display:none"></div>
-  <div id="view-db" style="display:none"></div>
-
   <script>
-    const open = new Set();
-    const MAX = 8000;
-    let tab = 'network';
+    const MAX = 20000;
+    let view = 'network';
+    let netData = [];
+    let selectedId = null;
+    let filter = '';
+    let lastSig = '';
+    let lastDetailId = undefined;
 
-    function showTab(t) {
-      tab = t;
-      for (const v of ['network', 'prefs', 'db']) {
-        document.getElementById('view-' + v).style.display = v === t ? '' : 'none';
-        document.getElementById('tab-btn-' + v).className = 'tab' + (v === t ? ' active' : '');
+    function esc(s) { return (s == null ? '' : String(s)).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+    function escA(s) { return esc(s).replace(/"/g, '&quot;'); }
+    function pretty(b) { if (!b) return ''; try { return JSON.stringify(JSON.parse(b), null, 2); } catch (e) { return b; } }
+    function mcolor(m) { return ({ GET: '#7bd88f', POST: '#ffd166', PUT: '#4c8bf5', DELETE: '#ff6b6b', PATCH: '#c792ea' })[m] || '#8a919e'; }
+    function scolor(c) { if (c >= 500) return '#ff6b6b'; if (c >= 400) return '#ffb454'; if (c >= 300) return '#56b6c2'; return '#7bd88f'; }
+    function sec(title, body) { return '<div class="sec"><div class="sec-title">' + title + '</div>' + body + '</div>'; }
+
+    function showView(v) {
+      view = v;
+      for (const x of ['network', 'prefs', 'db']) {
+        document.getElementById('view-' + x).classList.toggle('active', x === v);
+        document.getElementById('nav-' + x).classList.toggle('active', x === v);
       }
-      if (t === 'network') tickNetwork();
-      else if (t === 'prefs') tickPrefs();
+      if (v === 'network') tickNetwork();
+      else if (v === 'prefs') tickPrefs();
       else tickDb();
     }
 
-    function codeClass(code) { return code >= 500 ? 'err' : code >= 400 ? 'warn' : 'ok'; }
-    function escapeHtml(s) { return (s == null ? '' : String(s)).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
-    function escapeAttr(s) { return escapeHtml(s).replace(/"/g, '&quot;'); }
-    function pretty(body) { if (!body) return ''; try { return JSON.stringify(JSON.parse(body), null, 2); } catch (e) { return body; } }
-
-    function detailHtml(e) {
-      let html = '';
-      if (e.requestBody) html += '<div class="label">request body</div><pre>' + escapeHtml(pretty(e.requestBody).slice(0, MAX)) + '</pre>';
-      html += '<div class="label">response body</div><pre>' + escapeHtml(pretty(e.responseBody).slice(0, MAX)) + '</pre>';
-      return html;
+    function onFilter(val) { filter = val.toLowerCase(); lastSig = ''; renderNetList(); }
+    async function clearNetwork() {
+      try { await fetch('/api/network/clear', { method: 'POST' }); } catch (e) {}
+      selectedId = null; lastSig = ''; lastDetailId = undefined; tickNetwork();
     }
 
     async function tickNetwork() {
       let data;
       try { data = await (await fetch('/api/network')).json(); } catch (e) { return; }
-      document.getElementById('meta').textContent = data.length + ' requests · auto-refresh 1s';
-      const rows = document.getElementById('rows');
-      rows.innerHTML = '';
-      for (const e of data) {
-        const row = document.createElement('tr');
-        row.className = 'row';
-        row.innerHTML = '<td>' + e.id + '</td><td class="method">' + e.method + '</td><td class="' + codeClass(e.code) + '">' + e.code + '</td><td>' + e.durationMs + '</td><td class="url">' + escapeHtml(e.url) + '</td>';
-        const detail = document.createElement('tr');
-        detail.style.display = open.has(e.id) ? '' : 'none';
-        detail.innerHTML = '<td colspan="5">' + detailHtml(e) + '</td>';
-        row.onclick = () => { if (open.has(e.id)) open.delete(e.id); else open.add(e.id); detail.style.display = open.has(e.id) ? '' : 'none'; };
-        rows.appendChild(row); rows.appendChild(detail);
+      netData = data;
+      document.getElementById('net-badge').textContent = data.length;
+      document.getElementById('net-count').textContent = data.length + ' requests';
+      renderNetList();
+      renderNetDetail();
+    }
+
+    function renderNetList() {
+      const rows = filter ? netData.filter(e => e.url.toLowerCase().includes(filter)) : netData;
+      const sig = rows.map(e => e.id).join(',') + '|' + selectedId;
+      if (sig === lastSig) return;
+      lastSig = sig;
+      let h = '';
+      for (const e of rows) {
+        h += '<tr class="r' + (e.id === selectedId ? ' sel' : '') + '" onclick="selectRow(' + e.id + ')">'
+          + '<td><span class="badge-m" style="color:' + mcolor(e.method) + '">' + e.method + '</span></td>'
+          + '<td><span class="pill" style="color:' + scolor(e.code) + '">' + e.code + '</span></td>'
+          + '<td class="url-cell">' + esc(e.url) + '</td>'
+          + '<td class="muted">' + e.durationMs + ' ms</td>'
+          + '</tr>';
       }
+      document.getElementById('net-rows').innerHTML = h || '<tr><td colspan="4" class="empty">No requests</td></tr>';
+    }
+
+    function selectRow(id) { selectedId = id; lastSig = ''; renderNetList(); renderNetDetail(); }
+
+    function headersTbl(obj) {
+      const keys = Object.keys(obj || {});
+      if (!keys.length) return '<div style="padding:6px 14px" class="muted">(none)</div>';
+      let h = '<table class="kv">';
+      for (const k of keys) h += '<tr><td class="k">' + esc(k) + '</td><td class="v">' + esc(obj[k]) + '</td></tr>';
+      return h + '</table>';
+    }
+
+    function renderNetDetail() {
+      if (selectedId === lastDetailId) return;
+      lastDetailId = selectedId;
+      const el = document.getElementById('net-detail');
+      const e = netData.find(x => x.id === selectedId);
+      if (!e) { el.innerHTML = '<div class="empty">Select a request to inspect</div>'; return; }
+      let h = sec('General', '<table class="kv">'
+        + '<tr><td class="k">URL</td><td class="v">' + esc(e.url) + '</td></tr>'
+        + '<tr><td class="k">Method</td><td class="v" style="color:' + mcolor(e.method) + '">' + e.method + '</td></tr>'
+        + '<tr><td class="k">Status</td><td class="v" style="color:' + scolor(e.code) + '">' + e.code + '</td></tr>'
+        + '<tr><td class="k">Duration</td><td class="v">' + e.durationMs + ' ms</td></tr>'
+        + '</table>');
+      h += sec('Request Headers', headersTbl(e.requestHeaders));
+      if (e.requestBody) h += sec('Request Body', '<pre class="body">' + esc(pretty(e.requestBody).slice(0, MAX)) + '</pre>');
+      h += sec('Response Headers', headersTbl(e.responseHeaders));
+      h += sec('Response Body', '<pre class="body">' + esc(pretty(e.responseBody).slice(0, MAX)) + '</pre>');
+      el.innerHTML = h;
     }
 
     async function tickPrefs() {
       let data;
       try { data = await (await fetch('/api/prefs')).json(); } catch (e) { return; }
       const total = data.reduce((n, f) => n + f.entries.length, 0);
-      document.getElementById('meta').textContent = data.length + ' files · ' + total + ' keys · edit & save';
-      let html = '<div class="bar"><button onclick="tickPrefs()">↻ refresh</button></div>';
+      document.getElementById('prefs-count').textContent = data.length + ' files · ' + total + ' keys';
+      let h = '';
       for (const f of data) {
-        html += '<div class="pfile">' + escapeHtml(f.file) + '.xml</div>';
-        html += '<table><thead><tr><th>key</th><th>value</th><th>type</th><th></th></tr></thead><tbody>';
+        h += '<div class="pfile">' + esc(f.file) + '.xml</div>';
+        h += '<table class="grid"><thead><tr><th style="width:26%">Key</th><th>Value</th><th style="width:90px">Type</th><th style="width:120px"></th></tr></thead><tbody>';
         for (const e of f.entries) {
-          html += '<tr>' +
-            '<td>' + escapeHtml(e.key) + '</td>' +
-            '<td><input class="pv" data-file="' + escapeAttr(f.file) + '" data-key="' + escapeAttr(e.key) + '" data-type="' + escapeAttr(e.type) + '" value="' + escapeAttr(e.value) + '"></td>' +
-            '<td class="type">' + escapeHtml(e.type) + '</td>' +
-            '<td style="white-space:nowrap"><button onclick="savePref(this)">save</button> <button onclick="delPref(this)">del</button></td>' +
-            '</tr>';
+          h += '<tr>'
+            + '<td class="url-cell">' + esc(e.key) + '</td>'
+            + '<td><input class="pv" data-file="' + escA(f.file) + '" data-key="' + escA(e.key) + '" data-type="' + escA(e.type) + '" value="' + escA(e.value) + '"></td>'
+            + '<td class="muted">' + esc(e.type) + '</td>'
+            + '<td style="white-space:nowrap"><button class="rowbtn" onclick="savePref(this)">save</button> <button class="rowbtn" onclick="delPref(this)">del</button></td>'
+            + '</tr>';
         }
-        html += '</tbody></table>';
+        h += '</tbody></table>';
       }
-      document.getElementById('view-prefs').innerHTML = html;
+      document.getElementById('prefs-content').innerHTML = h || '<div class="empty">No preferences</div>';
     }
 
+    async function postJson(url, payload) { const r = await fetch(url, { method: 'POST', body: JSON.stringify(payload) }); return r.json(); }
+    async function savePref(btn) { const i = btn.closest('tr').querySelector('input.pv'); const r = await postJson('/api/prefs/edit', { file: i.dataset.file, key: i.dataset.key, type: i.dataset.type, value: i.value }); if (!r.ok) { alert('edit failed: ' + (r.error || '')); return; } tickPrefs(); }
+    async function delPref(btn) { const i = btn.closest('tr').querySelector('input.pv'); if (!confirm('delete ' + i.dataset.key + '?')) return; const r = await postJson('/api/prefs/delete', { file: i.dataset.file, key: i.dataset.key }); if (!r.ok) { alert('delete failed: ' + (r.error || '')); return; } tickPrefs(); }
+
+    let dbSel = '';
     async function tickDb() {
       let data;
       try { data = await (await fetch('/api/db')).json(); } catch (e) { return; }
-      document.getElementById('meta').textContent = data.length + ' databases · click a table';
-      let html = '<div class="bar"><button onclick="tickDb()">↻ refresh</button></div>';
+      document.getElementById('db-count').textContent = data.length + ' databases';
+      let h = '';
       for (const d of data) {
-        html += '<div class="pfile">' + escapeHtml(d.db) + '</div><div class="bar">';
-        if (!d.tables.length) html += '<span class="muted">(no tables)</span>';
+        h += '<div class="dbgroup"><div class="dbname">' + esc(d.db) + '</div>';
+        if (!d.tables.length) h += '<div class="muted" style="padding:4px 8px">(no tables)</div>';
         for (const t of d.tables) {
-          html += '<button class="tbtn" data-db="' + escapeAttr(d.db) + '" data-table="' + escapeAttr(t) + '">' + escapeHtml(t) + '</button>';
+          const id = d.db + '|' + t;
+          h += '<div class="chip' + (id === dbSel ? ' sel' : '') + '" data-db="' + escA(d.db) + '" data-table="' + escA(t) + '" onclick="pickTable(this)">' + esc(t) + '</div>';
         }
-        html += '</div>';
+        h += '</div>';
       }
-      html += '<div id="db-rows"></div>';
-      const root = document.getElementById('view-db');
-      root.innerHTML = html;
-      root.querySelectorAll('.tbtn').forEach(b => { b.onclick = () => loadTable(b.dataset.db, b.dataset.table); });
+      document.getElementById('db-side').innerHTML = h || '<div class="empty">No databases</div>';
+    }
+
+    function pickTable(el) {
+      dbSel = el.dataset.db + '|' + el.dataset.table;
+      document.querySelectorAll('#db-side .chip').forEach(c => c.classList.toggle('sel', c === el));
+      loadTable(el.dataset.db, el.dataset.table);
     }
 
     async function loadTable(db, table) {
       let data;
       try { data = await (await fetch('/api/db/table?db=' + encodeURIComponent(db) + '&table=' + encodeURIComponent(table))).json(); } catch (e) { return; }
-      const el = document.getElementById('db-rows');
-      if (data.error) { el.innerHTML = '<div class="bar err">' + escapeHtml(data.error) + '</div>'; return; }
-      let html = '<div class="pfile">' + escapeHtml(table) + ' · ' + data.count + ' rows</div><table><thead><tr>';
-      for (const col of data.columns) html += '<th>' + escapeHtml(col) + '</th>';
-      html += '</tr></thead><tbody>';
-      for (const row of data.rows) {
-        html += '<tr>';
-        for (const cell of row) html += '<td>' + escapeHtml(cell) + '</td>';
-        html += '</tr>';
-      }
-      html += '</tbody></table>';
-      el.innerHTML = html;
+      const el = document.getElementById('db-main');
+      if (data.error) { el.innerHTML = '<div class="empty" style="color:#ff6b6b">' + esc(data.error) + '</div>'; return; }
+      let h = '<div class="pfile">' + esc(table) + ' · ' + data.count + ' rows</div><table class="grid"><thead><tr>';
+      for (const c of data.columns) h += '<th>' + esc(c) + '</th>';
+      h += '</tr></thead><tbody>';
+      for (const row of data.rows) { h += '<tr>'; for (const cell of row) h += '<td class="url-cell">' + esc(cell) + '</td>'; h += '</tr>'; }
+      h += '</tbody></table>';
+      el.innerHTML = h;
     }
 
-    async function post(url, payload) {
-      const res = await fetch(url, { method: 'POST', body: JSON.stringify(payload) });
-      return res.json();
-    }
-
-    async function savePref(btn) {
-      const i = btn.closest('tr').querySelector('input.pv');
-      const r = await post('/api/prefs/edit', { file: i.dataset.file, key: i.dataset.key, type: i.dataset.type, value: i.value });
-      if (!r.ok) { alert('edit failed: ' + (r.error || '')); return; }
-      tickPrefs();
-    }
-
-    async function delPref(btn) {
-      const i = btn.closest('tr').querySelector('input.pv');
-      if (!confirm('delete ' + i.dataset.key + '?')) return;
-      const r = await post('/api/prefs/delete', { file: i.dataset.file, key: i.dataset.key });
-      if (!r.ok) { alert('delete failed: ' + (r.error || '')); return; }
-      tickPrefs();
-    }
-
-    async function tick() { if (tab === 'network') await tickNetwork(); }
-    setInterval(tick, 1000);
+    setInterval(() => { if (view === 'network') tickNetwork(); }, 1000);
     tickNetwork();
   </script>
 </body>

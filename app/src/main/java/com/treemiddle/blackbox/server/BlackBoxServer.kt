@@ -42,6 +42,10 @@ object BlackBoxServer {
                         get("/api/network") {
                             call.respondText(NetworkStore.toJson(), ContentType.Application.Json)
                         }
+                        post("/api/network/clear") {
+                            NetworkStore.clear()
+                            call.respondText(JSONObject().put("ok", true).toString(), ContentType.Application.Json)
+                        }
                         get("/api/prefs") {
                             call.respondText(PrefsReader.toJson(context), ContentType.Application.Json)
                         }

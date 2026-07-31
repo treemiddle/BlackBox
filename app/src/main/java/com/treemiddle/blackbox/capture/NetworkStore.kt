@@ -23,6 +23,12 @@ object NetworkStore {
         }
     }
 
+    fun clear() {
+        synchronized(lock) {
+            buffer.clear()
+        }
+    }
+
     fun toJson(): String {
         val snapshot = synchronized(lock) { buffer.toList() }
         val array = JSONArray()
@@ -33,7 +39,9 @@ object NetworkStore {
             obj.put("url", entry.url)
             obj.put("code", entry.code)
             obj.put("durationMs", entry.durationMs)
+            obj.put("requestHeaders", JSONObject(entry.requestHeaders))
             obj.put("requestBody", entry.requestBody ?: "")
+            obj.put("responseHeaders", JSONObject(entry.responseHeaders))
             obj.put("responseBody", entry.responseBody)
             array.put(obj)
         }

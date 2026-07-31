@@ -23,7 +23,9 @@ class BlackBoxInterceptor : Interceptor {
                 url = request.url.toString(),
                 code = response.code,
                 durationMs = durationMs,
+                requestHeaders = request.headers.toMap(),
                 requestBody = requestBody,
+                responseHeaders = response.headers.toMap(),
                 responseBody = peeked.string(),
             ),
         )
