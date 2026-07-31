@@ -22,6 +22,10 @@
     pre { white-space: pre-wrap; word-break: break-all; margin: 0; padding: 12px; background: #0f1317; border-radius: 6px; max-height: 320px; overflow: auto; color: #b9c2cc; }
     .pfile { margin: 16px 12px 4px; color: #7bd88f; font-weight: 600; font-size: 13px; }
     .type { color: #8b95a1; }
+    .bar { padding: 10px 12px; }
+    input.pv { background: #0f1317; border: 1px solid #232a31; color: #e6e6e6; border-radius: 4px; padding: 3px 6px; width: 100%; box-sizing: border-box; font-family: inherit; font-size: 13px; }
+    button { background: #222a31; border: 1px solid #2b343d; color: #e6e6e6; border-radius: 4px; padding: 3px 8px; cursor: pointer; font-size: 12px; }
+    button:hover { background: #2b343d; }
   </style>
 </head>
 <body>
@@ -54,11 +58,12 @@
       document.getElementById('view-prefs').style.display = t === 'prefs' ? '' : 'none';
       document.getElementById('tab-btn-network').className = 'tab' + (t === 'network' ? ' active' : '');
       document.getElementById('tab-btn-prefs').className = 'tab' + (t === 'prefs' ? ' active' : '');
-      tick();
+      if (t === 'network') tickNetwork(); else tickPrefs();
     }
 
     function codeClass(code) { return code >= 500 ? 'err' : code >= 400 ? 'warn' : 'ok'; }
     function escapeHtml(s) { return (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+    function escapeAttr(s) { return escapeHtml(s).replace(/"/g, '&quot;'); }
     function pretty(body) { if (!body) return ''; try { return JSON.stringify(JSON.parse(body), null, 2); } catch (e) { return body; } }
 
     function detailHtml(e) {
@@ -90,31 +95,47 @@
       let data;
       try { data = await (await fetch('/api/prefs')).json(); } catch (e) { return; }
       const total = data.reduce((n, f) => n + f.entries.length, 0);
-      document.getElementById('meta').textContent = data.length + ' files · ' + total + ' keys · auto-refresh 1s';
-      const root = document.getElementById('view-prefs');
-      root.innerHTML = '';
+      document.getElementById('meta').textContent = data.length + ' files · ' + total + ' keys · edit & save';
+      let html = '<div class="bar"><button onclick="tickPrefs()">↻ refresh</button></div>';
       for (const f of data) {
-        const title = document.createElement('div');
-        title.className = 'pfile';
-        title.textContent = f.file + '.xml';
-        root.appendChild(title);
-        const table = document.createElement('table');
-        let body = '<thead><tr><th>key</th><th>value</th><th>type</th></tr></thead><tbody>';
+        html += '<div class="pfile">' + escapeHtml(f.file) + '.xml</div>';
+        html += '<table><thead><tr><th>key</th><th>value</th><th>type</th><th></th></tr></thead><tbody>';
         for (const e of f.entries) {
-          body += '<tr><td>' + escapeHtml(e.key) + '</td><td>' + escapeHtml(e.value) + '</td><td class="type">' + escapeHtml(e.type) + '</td></tr>';
+          html += '<tr>' +
+            '<td>' + escapeHtml(e.key) + '</td>' +
+            '<td><input class="pv" data-file="' + escapeAttr(f.file) + '" data-key="' + escapeAttr(e.key) + '" data-type="' + escapeAttr(e.type) + '" value="' + escapeAttr(e.value) + '"></td>' +
+            '<td class="type">' + escapeHtml(e.type) + '</td>' +
+            '<td style="white-space:nowrap"><button onclick="savePref(this)">save</button> <button onclick="delPref(this)">del</button></td>' +
+            '</tr>';
         }
-        body += '</tbody>';
-        table.innerHTML = body;
-        root.appendChild(table);
+        html += '</tbody></table>';
       }
+      document.getElementById('view-prefs').innerHTML = html;
     }
 
-    async function tick() {
-      if (tab === 'network') await tickNetwork(); else await tickPrefs();
+    async function post(url, payload) {
+      const res = await fetch(url, { method: 'POST', body: JSON.stringify(payload) });
+      return res.json();
     }
 
+    async function savePref(btn) {
+      const i = btn.closest('tr').querySelector('input.pv');
+      const r = await post('/api/prefs/edit', { file: i.dataset.file, key: i.dataset.key, type: i.dataset.type, value: i.value });
+      if (!r.ok) { alert('edit failed: ' + (r.error || '')); return; }
+      tickPrefs();
+    }
+
+    async function delPref(btn) {
+      const i = btn.closest('tr').querySelector('input.pv');
+      if (!confirm('delete ' + i.dataset.key + '?')) return;
+      const r = await post('/api/prefs/delete', { file: i.dataset.file, key: i.dataset.key });
+      if (!r.ok) { alert('delete failed: ' + (r.error || '')); return; }
+      tickPrefs();
+    }
+
+    async function tick() { if (tab === 'network') await tickNetwork(); }
     setInterval(tick, 1000);
-    tick();
+    tickNetwork();
   </script>
 </body>
 </html>
