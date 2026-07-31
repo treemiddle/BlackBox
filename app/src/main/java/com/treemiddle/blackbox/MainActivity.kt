@@ -8,8 +8,10 @@ import android.widget.TextView
 import com.treemiddle.blackbox.capture.BlackBoxInterceptor
 import okhttp3.Call
 import okhttp3.Callback
+import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
 import java.io.IOException
 
@@ -56,16 +58,27 @@ class MainActivity : Activity() {
     }
 
     private fun fireSampleRequests() {
-        sampleUrls.forEach { url ->
-            client.newCall(Request.Builder().url(url).build()).enqueue(
-                object : Callback {
-                    override fun onFailure(call: Call, e: IOException) = Unit
+        sampleUrls.forEach { url -> enqueue(Request.Builder().url(url).build()) }
 
-                    override fun onResponse(call: Call, response: Response) {
-                        response.use { it.body.string() }
-                    }
-                },
-            )
-        }
+        val json = """{"title":"blackbox","body":"hello from poc","userId":7}"""
+        val postBody = json.toRequestBody("application/json".toMediaType())
+        enqueue(
+            Request.Builder()
+                .url("https://jsonplaceholder.typicode.com/posts")
+                .post(postBody)
+                .build(),
+        )
+    }
+
+    private fun enqueue(request: Request) {
+        client.newCall(request).enqueue(
+            object : Callback {
+                override fun onFailure(call: Call, e: IOException) = Unit
+
+                override fun onResponse(call: Call, response: Response) {
+                    response.use { it.body.string() }
+                }
+            },
+        )
     }
 }

@@ -33,6 +33,7 @@ object NetworkStore {
             obj.put("url", entry.url)
             obj.put("code", entry.code)
             obj.put("durationMs", entry.durationMs)
+            obj.put("requestBody", entry.requestBody ?: "")
             obj.put("responseBody", entry.responseBody)
             array.put(obj)
         }

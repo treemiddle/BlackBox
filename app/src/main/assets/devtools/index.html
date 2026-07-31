@@ -16,6 +16,7 @@
     .warn { color: #ffd166; }
     .err { color: #ff6b6b; }
     .url { color: #cfd6dd; word-break: break-all; }
+    .label { color: #8b95a1; font-size: 11px; text-transform: uppercase; letter-spacing: .04em; margin: 8px 0 4px; }
     pre { white-space: pre-wrap; word-break: break-all; margin: 0; padding: 12px; background: #0f1317; border-radius: 6px; max-height: 320px; overflow: auto; color: #b9c2cc; }
   </style>
 </head>
@@ -30,6 +31,7 @@
 
   <script>
     const open = new Set();
+    const MAX = 8000;
 
     function codeClass(code) {
       if (code >= 500) return 'err';
@@ -39,6 +41,24 @@
 
     function escapeHtml(s) {
       return (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
+    function pretty(body) {
+      if (!body) return '';
+      try {
+        return JSON.stringify(JSON.parse(body), null, 2);
+      } catch (e) {
+        return body;
+      }
+    }
+
+    function detailHtml(e) {
+      let html = '';
+      if (e.requestBody) {
+        html += '<div class="label">request body</div><pre>' + escapeHtml(pretty(e.requestBody).slice(0, MAX)) + '</pre>';
+      }
+      html += '<div class="label">response body</div><pre>' + escapeHtml(pretty(e.responseBody).slice(0, MAX)) + '</pre>';
+      return html;
     }
 
     async function tick() {
@@ -64,8 +84,7 @@
 
         const detail = document.createElement('tr');
         detail.style.display = open.has(e.id) ? '' : 'none';
-        detail.innerHTML =
-          '<td colspan="5"><pre>' + escapeHtml((e.responseBody || '').slice(0, 5000)) + '</pre></td>';
+        detail.innerHTML = '<td colspan="5">' + detailHtml(e) + '</td>';
 
         row.onclick = () => {
           if (open.has(e.id)) open.delete(e.id); else open.add(e.id);

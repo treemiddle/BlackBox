@@ -6,5 +6,6 @@ data class NetworkEntry(
     val url: String,
     val code: Int,
     val durationMs: Long,
+    val requestBody: String?,
     val responseBody: String,
 )
