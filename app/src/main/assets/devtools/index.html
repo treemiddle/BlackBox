@@ -163,13 +163,13 @@
 
     function onFilter(val) { filter = val.toLowerCase(); lastSig = ''; renderNetList(); }
     async function clearNetwork() {
-      try { await fetch('/api/network/clear', { method: 'POST' }); } catch (e) {}
+      try { await fetch('api/network/clear', { method: 'POST' }); } catch (e) {}
       selectedId = null; lastSig = ''; lastDetailId = undefined; tickNetwork();
     }
 
     async function tickNetwork() {
       let data;
-      try { data = await (await fetch('/api/network')).json(); } catch (e) { return; }
+      try { data = await (await fetch('api/network')).json(); } catch (e) { return; }
       netData = data;
       document.getElementById('net-badge').textContent = data.length;
       document.getElementById('net-count').textContent = data.length + ' requests';
@@ -225,7 +225,7 @@
 
     async function tickPrefs() {
       let data;
-      try { data = await (await fetch('/api/prefs')).json(); } catch (e) { return; }
+      try { data = await (await fetch('api/prefs')).json(); } catch (e) { return; }
       const total = data.reduce((n, f) => n + f.entries.length, 0);
       document.getElementById('prefs-count').textContent = data.length + ' files · ' + total + ' keys';
       let h = '';
@@ -246,13 +246,13 @@
     }
 
     async function postJson(url, payload) { const r = await fetch(url, { method: 'POST', body: JSON.stringify(payload) }); return r.json(); }
-    async function savePref(btn) { const i = btn.closest('tr').querySelector('input.pv'); const r = await postJson('/api/prefs/edit', { file: i.dataset.file, key: i.dataset.key, type: i.dataset.type, value: i.value }); if (!r.ok) { alert('edit failed: ' + (r.error || '')); return; } tickPrefs(); }
-    async function delPref(btn) { const i = btn.closest('tr').querySelector('input.pv'); if (!confirm('delete ' + i.dataset.key + '?')) return; const r = await postJson('/api/prefs/delete', { file: i.dataset.file, key: i.dataset.key }); if (!r.ok) { alert('delete failed: ' + (r.error || '')); return; } tickPrefs(); }
+    async function savePref(btn) { const i = btn.closest('tr').querySelector('input.pv'); const r = await postJson('api/prefs/edit', { file: i.dataset.file, key: i.dataset.key, type: i.dataset.type, value: i.value }); if (!r.ok) { alert('edit failed: ' + (r.error || '')); return; } tickPrefs(); }
+    async function delPref(btn) { const i = btn.closest('tr').querySelector('input.pv'); if (!confirm('delete ' + i.dataset.key + '?')) return; const r = await postJson('api/prefs/delete', { file: i.dataset.file, key: i.dataset.key }); if (!r.ok) { alert('delete failed: ' + (r.error || '')); return; } tickPrefs(); }
 
     let dbSel = '';
     async function tickDb() {
       let data;
-      try { data = await (await fetch('/api/db')).json(); } catch (e) { return; }
+      try { data = await (await fetch('api/db')).json(); } catch (e) { return; }
       document.getElementById('db-count').textContent = data.length + ' databases';
       let h = '';
       for (const d of data) {
@@ -275,7 +275,7 @@
 
     async function loadTable(db, table) {
       let data;
-      try { data = await (await fetch('/api/db/table?db=' + encodeURIComponent(db) + '&table=' + encodeURIComponent(table))).json(); } catch (e) { return; }
+      try { data = await (await fetch('api/db/table?db=' + encodeURIComponent(db) + '&table=' + encodeURIComponent(table))).json(); } catch (e) { return; }
       const el = document.getElementById('db-main');
       if (data.error) { el.innerHTML = '<div class="empty" style="color:#ff6b6b">' + esc(data.error) + '</div>'; return; }
       let h = '<div class="pfile">' + esc(table) + ' · ' + data.count + ' rows</div><table class="grid"><thead><tr>';
