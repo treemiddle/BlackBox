@@ -3,6 +3,7 @@ package com.treemiddle.blackbox.server
 import android.content.Context
 import com.treemiddle.blackbox.capture.NetworkStore
 import com.treemiddle.blackbox.db.DbReader
+import com.treemiddle.blackbox.device.DeviceInfo
 import com.treemiddle.blackbox.prefs.PrefsReader
 import com.treemiddle.blackbox.prefs.PrefsWriter
 import io.ktor.http.ContentType
@@ -38,6 +39,9 @@ object BlackBoxServer {
                     routing {
                         get("/") {
                             call.respondText(indexHtml, ContentType.Text.Html)
+                        }
+                        get("/api/device") {
+                            call.respondText(DeviceInfo.toJson(context), ContentType.Application.Json)
                         }
                         get("/api/network") {
                             call.respondText(NetworkStore.toJson(), ContentType.Application.Json)

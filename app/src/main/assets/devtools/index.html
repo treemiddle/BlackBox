@@ -86,7 +86,7 @@
         <div class="nav-item" id="nav-prefs" onclick="showView('prefs')"><span class="ico">⚙️</span> Preferences</div>
         <div class="nav-item" id="nav-db" onclick="showView('db')"><span class="ico">🗄️</span> Databases</div>
       </div>
-      <div class="foot">debug · 127.0.0.1:8080</div>
+      <div class="foot" id="devinfo">debug · 127.0.0.1:8080</div>
     </div>
 
     <div class="main">
@@ -286,7 +286,15 @@
       el.innerHTML = h;
     }
 
+    async function loadDevice() {
+      try {
+        const d = await (await fetch('api/device')).json();
+        document.getElementById('devinfo').textContent = '📱 ' + d.model + ' · Android ' + d.android + ' (API ' + d.sdk + ')';
+      } catch (e) {}
+    }
+
     setInterval(() => { if (view === 'network') tickNetwork(); }, 1000);
+    loadDevice();
     tickNetwork();
   </script>
 </body>
