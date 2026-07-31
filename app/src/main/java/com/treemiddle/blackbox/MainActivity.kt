@@ -54,7 +54,20 @@ class MainActivity : Activity() {
         }
         setContentView(root)
 
+        seedSamplePrefs()
         fireSampleRequests()
+    }
+
+    private fun seedSamplePrefs() {
+        val prefs = getSharedPreferences("blackbox_demo", MODE_PRIVATE)
+        val launches = prefs.getInt("launch_count", 0) + 1
+        prefs.edit()
+            .putString("user_name", "treemiddle")
+            .putInt("launch_count", launches)
+            .putBoolean("is_debug", true)
+            .putLong("last_opened_at", System.currentTimeMillis())
+            .putStringSet("tags", setOf("poc", "prefs", "blackbox"))
+            .apply()
     }
 
     private fun fireSampleRequests() {

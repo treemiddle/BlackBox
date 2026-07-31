@@ -2,6 +2,7 @@ package com.treemiddle.blackbox.server
 
 import android.content.Context
 import com.treemiddle.blackbox.capture.NetworkStore
+import com.treemiddle.blackbox.prefs.PrefsReader
 import io.ktor.http.ContentType
 import io.ktor.server.cio.CIO
 import io.ktor.server.engine.embeddedServer
@@ -34,6 +35,9 @@ object BlackBoxServer {
                         }
                         get("/api/network") {
                             call.respondText(NetworkStore.toJson(), ContentType.Application.Json)
+                        }
+                        get("/api/prefs") {
+                            call.respondText(PrefsReader.toJson(context), ContentType.Application.Json)
                         }
                     }
                 }.start(wait = true)
