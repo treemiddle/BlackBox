@@ -55,6 +55,7 @@ class MainActivity : Activity() {
         setContentView(root)
 
         seedSamplePrefs()
+        seedSampleDb()
         fireSampleRequests()
     }
 
@@ -68,6 +69,17 @@ class MainActivity : Activity() {
             .putLong("last_opened_at", System.currentTimeMillis())
             .putStringSet("tags", setOf("poc", "prefs", "blackbox"))
             .apply()
+    }
+
+    private fun seedSampleDb() {
+        val db = openOrCreateDatabase("blackbox_demo.db", MODE_PRIVATE, null)
+        db.execSQL("CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, email TEXT, active INTEGER)")
+        db.execSQL("DELETE FROM users")
+        db.execSQL("INSERT INTO users (name, email, active) VALUES ('treemiddle', 'tree@tada.io', 1), ('alice', 'alice@example.com', 0), ('bob', 'bob@example.com', 1)")
+        db.execSQL("CREATE TABLE IF NOT EXISTS trips (id INTEGER PRIMARY KEY AUTOINCREMENT, city TEXT, fare REAL)")
+        db.execSQL("DELETE FROM trips")
+        db.execSQL("INSERT INTO trips (city, fare) VALUES ('Singapore', 12.5), ('Bangkok', 8.0), ('Phnom Penh', 5.25)")
+        db.close()
     }
 
     private fun fireSampleRequests() {

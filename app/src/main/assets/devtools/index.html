@@ -22,7 +22,7 @@
     pre { white-space: pre-wrap; word-break: break-all; margin: 0; padding: 12px; background: #0f1317; border-radius: 6px; max-height: 320px; overflow: auto; color: #b9c2cc; }
     .pfile { margin: 16px 12px 4px; color: #7bd88f; font-weight: 600; font-size: 13px; }
     .type { color: #8b95a1; }
-    .bar { padding: 10px 12px; }
+    .bar { padding: 10px 12px; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
     input.pv { background: #0f1317; border: 1px solid #232a31; color: #e6e6e6; border-radius: 4px; padding: 3px 6px; width: 100%; box-sizing: border-box; font-family: inherit; font-size: 13px; }
     button { background: #222a31; border: 1px solid #2b343d; color: #e6e6e6; border-radius: 4px; padding: 3px 8px; cursor: pointer; font-size: 12px; }
     button:hover { background: #2b343d; }
@@ -34,6 +34,7 @@
     <div class="tabs">
       <div class="tab active" id="tab-btn-network" onclick="showTab('network')">network</div>
       <div class="tab" id="tab-btn-prefs" onclick="showTab('prefs')">prefs</div>
+      <div class="tab" id="tab-btn-db" onclick="showTab('db')">db</div>
     </div>
     <span class="muted" id="meta"></span>
   </header>
@@ -46,6 +47,7 @@
   </div>
 
   <div id="view-prefs" style="display:none"></div>
+  <div id="view-db" style="display:none"></div>
 
   <script>
     const open = new Set();
@@ -54,15 +56,17 @@
 
     function showTab(t) {
       tab = t;
-      document.getElementById('view-network').style.display = t === 'network' ? '' : 'none';
-      document.getElementById('view-prefs').style.display = t === 'prefs' ? '' : 'none';
-      document.getElementById('tab-btn-network').className = 'tab' + (t === 'network' ? ' active' : '');
-      document.getElementById('tab-btn-prefs').className = 'tab' + (t === 'prefs' ? ' active' : '');
-      if (t === 'network') tickNetwork(); else tickPrefs();
+      for (const v of ['network', 'prefs', 'db']) {
+        document.getElementById('view-' + v).style.display = v === t ? '' : 'none';
+        document.getElementById('tab-btn-' + v).className = 'tab' + (v === t ? ' active' : '');
+      }
+      if (t === 'network') tickNetwork();
+      else if (t === 'prefs') tickPrefs();
+      else tickDb();
     }
 
     function codeClass(code) { return code >= 500 ? 'err' : code >= 400 ? 'warn' : 'ok'; }
-    function escapeHtml(s) { return (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+    function escapeHtml(s) { return (s == null ? '' : String(s)).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
     function escapeAttr(s) { return escapeHtml(s).replace(/"/g, '&quot;'); }
     function pretty(body) { if (!body) return ''; try { return JSON.stringify(JSON.parse(body), null, 2); } catch (e) { return body; } }
 
@@ -111,6 +115,42 @@
         html += '</tbody></table>';
       }
       document.getElementById('view-prefs').innerHTML = html;
+    }
+
+    async function tickDb() {
+      let data;
+      try { data = await (await fetch('/api/db')).json(); } catch (e) { return; }
+      document.getElementById('meta').textContent = data.length + ' databases · click a table';
+      let html = '<div class="bar"><button onclick="tickDb()">↻ refresh</button></div>';
+      for (const d of data) {
+        html += '<div class="pfile">' + escapeHtml(d.db) + '</div><div class="bar">';
+        if (!d.tables.length) html += '<span class="muted">(no tables)</span>';
+        for (const t of d.tables) {
+          html += '<button class="tbtn" data-db="' + escapeAttr(d.db) + '" data-table="' + escapeAttr(t) + '">' + escapeHtml(t) + '</button>';
+        }
+        html += '</div>';
+      }
+      html += '<div id="db-rows"></div>';
+      const root = document.getElementById('view-db');
+      root.innerHTML = html;
+      root.querySelectorAll('.tbtn').forEach(b => { b.onclick = () => loadTable(b.dataset.db, b.dataset.table); });
+    }
+
+    async function loadTable(db, table) {
+      let data;
+      try { data = await (await fetch('/api/db/table?db=' + encodeURIComponent(db) + '&table=' + encodeURIComponent(table))).json(); } catch (e) { return; }
+      const el = document.getElementById('db-rows');
+      if (data.error) { el.innerHTML = '<div class="bar err">' + escapeHtml(data.error) + '</div>'; return; }
+      let html = '<div class="pfile">' + escapeHtml(table) + ' · ' + data.count + ' rows</div><table><thead><tr>';
+      for (const col of data.columns) html += '<th>' + escapeHtml(col) + '</th>';
+      html += '</tr></thead><tbody>';
+      for (const row of data.rows) {
+        html += '<tr>';
+        for (const cell of row) html += '<td>' + escapeHtml(cell) + '</td>';
+        html += '</tr>';
+      }
+      html += '</tbody></table>';
+      el.innerHTML = html;
     }
 
     async function post(url, payload) {

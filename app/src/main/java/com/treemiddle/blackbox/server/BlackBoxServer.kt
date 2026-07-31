@@ -2,6 +2,7 @@ package com.treemiddle.blackbox.server
 
 import android.content.Context
 import com.treemiddle.blackbox.capture.NetworkStore
+import com.treemiddle.blackbox.db.DbReader
 import com.treemiddle.blackbox.prefs.PrefsReader
 import com.treemiddle.blackbox.prefs.PrefsWriter
 import io.ktor.http.ContentType
@@ -78,6 +79,30 @@ object BlackBoxServer {
                                     ContentType.Application.Json,
                                     HttpStatusCode.BadRequest,
                                 )
+                            }
+                        }
+                        get("/api/db") {
+                            call.respondText(DbReader.listJson(context), ContentType.Application.Json)
+                        }
+                        get("/api/db/table") {
+                            val name = call.request.queryParameters["db"]
+                            val table = call.request.queryParameters["table"]
+                            if (name == null || table == null) {
+                                call.respondText(
+                                    JSONObject().put("error", "db and table required").toString(),
+                                    ContentType.Application.Json,
+                                    HttpStatusCode.BadRequest,
+                                )
+                            } else {
+                                try {
+                                    call.respondText(DbReader.tableJson(context, name, table), ContentType.Application.Json)
+                                } catch (e: Exception) {
+                                    call.respondText(
+                                        JSONObject().put("error", e.message ?: "error").toString(),
+                                        ContentType.Application.Json,
+                                        HttpStatusCode.BadRequest,
+                                    )
+                                }
                             }
                         }
                     }
