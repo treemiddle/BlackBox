@@ -34,6 +34,7 @@
     .search:focus { border-color: #4c8bf5; }
     .tbtnx { background: #252b34; border: 1px solid #313945; color: #cfd4dc; border-radius: 7px; padding: 5px 12px; cursor: pointer; font-size: 12px; }
     .tbtnx:hover { background: #2d353f; }
+    .tbtnx.on { border-color: #7bd88f; color: #7bd88f; }
     .muted { color: #6b7482; font-size: 12px; }
 
     .view { flex: 1; min-height: 0; display: none; flex-direction: column; }
@@ -141,6 +142,7 @@
         <div class="toolbar">
           <span class="tb-title">Databases</span>
           <button class="tbtnx" onclick="tickDb()">↻ Refresh</button>
+          <button class="tbtnx" id="db-live" onclick="toggleDbLive()">◻ Live</button>
           <span class="spacer"></span>
           <span class="muted" id="db-count"></span>
         </div>
@@ -250,13 +252,13 @@
       let h = '';
       for (const f of data) {
         h += '<div class="pfile">' + esc(f.file) + '.xml</div>';
-        h += '<table class="grid"><thead><tr><th style="width:26%">Key</th><th>Value</th><th style="width:90px">Type</th><th style="width:120px"></th></tr></thead><tbody>';
+        h += '<table class="grid"><thead><tr><th style="width:26%">Key</th><th>Value</th><th style="width:90px">Type</th><th style="width:150px"></th></tr></thead><tbody>';
         for (const e of f.entries) {
           h += '<tr>'
             + '<td class="url-cell">' + esc(e.key) + '</td>'
             + '<td><input class="pv" data-file="' + escA(f.file) + '" data-key="' + escA(e.key) + '" data-type="' + escA(e.type) + '" value="' + escA(e.value) + '"></td>'
             + '<td class="muted">' + esc(e.type) + '</td>'
-            + '<td style="white-space:nowrap"><button class="rowbtn" onclick="savePref(this)">save</button> <button class="rowbtn" onclick="delPref(this)">del</button></td>'
+            + '<td style="white-space:nowrap"><button class="rowbtn" onclick="savePref(this)">save</button> <button class="rowbtn" onclick="delPref(this)">delete</button></td>'
             + '</tr>';
         }
         h += '</tbody></table>';
@@ -269,6 +271,15 @@
     async function delPref(btn) { const i = btn.closest('tr').querySelector('input.pv'); if (!confirm('delete ' + i.dataset.key + '?')) return; const r = await postJson('api/prefs/delete', { file: i.dataset.file, key: i.dataset.key }); if (!r.ok) { alert('delete failed: ' + (r.error || '')); return; } tickPrefs(); }
 
     let dbSel = '';
+    let dbLive = false;
+    let dbCurrent = null;
+    function toggleDbLive() {
+      dbLive = !dbLive;
+      const btn = document.getElementById('db-live');
+      btn.textContent = dbLive ? '◉ Live' : '◻ Live';
+      btn.classList.toggle('on', dbLive);
+      if (dbLive && dbCurrent) loadTable(dbCurrent.db, dbCurrent.table);
+    }
     async function tickDb() {
       let data;
       try { data = await (await fetch('api/db')).json(); } catch (e) { return; }
@@ -288,6 +299,7 @@
 
     function pickTable(el) {
       dbSel = el.dataset.db + '|' + el.dataset.table;
+      dbCurrent = { db: el.dataset.db, table: el.dataset.table };
       document.querySelectorAll('#db-side .chip').forEach(c => c.classList.toggle('sel', c === el));
       loadTable(el.dataset.db, el.dataset.table);
     }
@@ -408,10 +420,12 @@
     initResizer('db-resizer', 'db-side', 'left', 160);
 
     setInterval(() => { if (view === 'network') tickNetwork(); }, 1000);
+    setInterval(() => { if (view === 'db' && dbLive && dbCurrent) loadTable(dbCurrent.db, dbCurrent.table); }, 1500);
     setInterval(recTick, 1500);
     loadDevice();
-    tickNetwork();
     recTick();
+    const initialTab = (location.hash || '').slice(1);
+    showView(['network', 'prefs', 'db'].includes(initialTab) ? initialTab : 'network');
   </script>
 </body>
 </html>
