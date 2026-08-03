@@ -29,8 +29,12 @@ use with a pure-JVM, native-free approach:
   with an optional **Live Updates** toggle.
 - 📷 **Screenshot** — capture the current app window (PixelCopy, no permission).
 - ⏺ **Screen recording** — MediaProjection → H.264 MP4, auto-downloaded on stop.
+- 🧩 **Multi-app** — several debug apps on one device each claim the next free port
+  (`8080`–`8089`); the app on `8080` acts as a hub, serving an app picker and
+  reverse-proxying to the others, so a single `localhost:8080` exposes every app.
 - 📱 **Multi-device** — a small host proxy enumerates connected devices and serves
-  one adaptive UI (a device selector appears automatically with 2+ devices).
+  one adaptive UI (a device selector appears automatically with 2+ devices). Device
+  selection (proxy) and app selection (device hub) compose: pick a device, then an app.
 
 ## Quick start
 
@@ -60,15 +64,22 @@ open http://localhost:8080          # device selector appears at the top
 The proxy is adaptive: one device → that device directly; two or more → a device
 dropdown. New devices are detected automatically. No third-party Python deps.
 
+**Multiple apps on one device** — just install and launch each. The first app binds
+`8080` and becomes the hub; the rest take `8081`–`8089`. Open `localhost:8080` and an
+**app dropdown** appears at the top — no extra tooling. (Combine with the proxy above
+for a device dropdown + app dropdown.)
+
 ## How it works
 
 ```
 [device · debug build]
    BlackBox agent (auto-starts in Application.onCreate)
-   ├─ Ktor CIO server on 127.0.0.1:8080
+   ├─ Ktor CIO server on first free 127.0.0.1 port in 8080..8089
    ├─ OkHttp interceptor → ring buffer      (network)
    ├─ SharedPreferences / SQLite readers     (prefs, db)
-   └─ PixelCopy / MediaProjection            (screenshot, record)
+   ├─ PixelCopy / MediaProjection            (screenshot, record)
+   └─ hub (only the app on :8080): app picker + reverse-proxy to sibling
+      apps via loopback — discovers them by probing 127.0.0.1:8080..8089
         │ adb forward (USB tunnel)
         ▼
 [desktop]  browser → http://localhost:8080
@@ -77,8 +88,12 @@ dropdown. New devices are detected automatically. No third-party Python deps.
    enumerates via `adb devices`, reverse-proxies /api/* to each device
 ```
 
-Multi-device inherently needs the host proxy — an app can't enumerate other
-devices (`adb devices` is a host-only command).
+Two orthogonal layers: the **device hub** picks among apps on one device
+(all in-app, single `adb forward`); the **host proxy** picks among devices.
+Multi-device inherently needs the proxy — an app can't enumerate other devices
+(`adb devices` is a host-only command). The hub reaches sibling apps over the
+device's shared loopback using a tiny raw-socket HTTP client (no cleartext-policy
+dependency).
 
 ## Tech
 
@@ -92,21 +107,26 @@ devices (`adb devices` is a host-only command).
 ```
 app/src/main/
   ├─ java/com/treemiddle/blackbox/
-  │   ├─ server/     Ktor server + routes
+  │   ├─ server/     Ktor server + routes, hub (app picker), loopback HTTP client
   │   ├─ capture/    OkHttp interceptor + thread-safe ring buffer
   │   ├─ prefs/      SharedPreferences read / write
   │   ├─ db/         SQLite read-only reader
   │   ├─ screen/     PixelCopy screenshot
   │   └─ record/     MediaProjection screen recording
-  └─ assets/devtools/index.html   the browser UI
+  └─ assets/devtools/
+      ├─ index.html  per-app browser UI (network / prefs / db / …)
+      └─ hub.html     app picker served by the :8080 hub
 tools/blackbox-proxy.py           host-side multi-device proxy
 ```
 
 ## Status
 
-Proof of concept — all core features built and verified on real devices. Next:
-extract the device-side agent into a reusable library module so host apps embed
-it in one line (debug-only, no-op in release).
+Proof of concept — all features built and verified on real devices, now including
+multi-app (device-side hub) and multi-device (host proxy). The device-side agent has
+been extracted into TADA's `core/devtools` source module — a flavorless Android
+library shared by the rider and driver apps (debug-only, no-op in release), wired in
+with a one-line `DevTools.init(app)` at startup plus one interceptor line in the
+OkHttp client factory.
 
 ---
 
