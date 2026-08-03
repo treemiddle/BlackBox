@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>DevTools</title>
+  <style>
+    html, body { margin: 0; height: 100%; background: #15171c; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #d7dae0; }
+    .bar { height: 42px; display: none; align-items: center; gap: 10px; padding: 0 14px; background: #15171c; border-bottom: 1px solid #2a2f38; font-size: 14px; }
+    .bar.show { display: flex; }
+    .brand { font-weight: 700; display: flex; align-items: center; gap: 8px; margin-right: 4px; }
+    .brand .dot { width: 9px; height: 9px; border-radius: 50%; background: #4c8bf5; box-shadow: 0 0 8px #4c8bf5; }
+    .muted { color: #6b7482; font-size: 12px; }
+    select { background: #12141a; color: #d7dae0; border: 1px solid #2a2f38; border-radius: 7px; padding: 5px 10px; font-size: 13px; outline: none; max-width: 360px; }
+    select:focus { border-color: #4c8bf5; }
+    button { background: #252b34; border: 1px solid #313945; color: #cfd4dc; border-radius: 7px; padding: 5px 11px; cursor: pointer; font-size: 12px; }
+    button:hover { background: #2d353f; }
+    iframe { border: 0; width: 100%; height: 100vh; display: block; background: #1b1e24; }
+    .empty { display: none; align-items: center; justify-content: center; height: 100vh; color: #5c6672; }
+  </style>
+</head>
+<body>
+  <div class="bar" id="bar">
+    <span class="brand"><span class="dot"></span> DevTools</span>
+    <span class="muted">App</span>
+    <select id="app"></select>
+    <button onclick="refresh()">&#8635;</button>
+    <span class="muted" id="cnt"></span>
+  </div>
+  <iframe id="frame"></iframe>
+  <div class="empty" id="empty">No apps found</div>
+  <script>
+    const bar = document.getElementById('bar');
+    const appSel = document.getElementById('app');
+    const frame = document.getElementById('frame');
+    const empty = document.getElementById('empty');
+    const cnt = document.getElementById('cnt');
+    let apps = [];
+    let cur = null;
+    let sig = '';
+
+    function show(port) {
+      const src = 'app/' + port + '/';
+      if (frame.getAttribute('src') !== src) { frame.src = src; }
+    }
+
+    function render() {
+      if (!apps.length) {
+        frame.style.display = 'none';
+        empty.style.display = 'flex';
+        bar.classList.remove('show');
+        return;
+      }
+      frame.style.display = 'block';
+      empty.style.display = 'none';
+      const multi = apps.length > 1;
+      bar.classList.toggle('show', multi);
+      frame.style.height = multi ? 'calc(100vh - 42px)' : '100vh';
+      cnt.textContent = apps.length + ' app(s)';
+
+      if (!apps.some((a) => String(a.port) === String(cur))) { cur = apps[0].port; }
+      appSel.innerHTML = apps.map((a) => '<option value="' + a.port + '">' + a.package + '</option>').join('');
+      appSel.value = cur;
+      show(cur);
+    }
+
+    async function refresh() {
+      try { apps = await (await fetch('hub/apps')).json(); } catch (e) { apps = []; }
+      const newSig = apps.map((a) => a.port + ':' + a.package).join(',');
+      if (newSig === sig) { return; }
+      sig = newSig;
+      render();
+    }
+
+    appSel.onchange = () => { cur = appSel.value; show(cur); };
+    refresh();
+    setInterval(refresh, 4000);
+  </script>
+</body>
+</html>

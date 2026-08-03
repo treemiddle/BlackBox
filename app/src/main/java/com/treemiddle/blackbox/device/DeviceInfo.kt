@@ -6,12 +6,13 @@ import org.json.JSONObject
 
 object DeviceInfo {
 
-    fun toJson(context: Context): String =
+    fun toJson(context: Context, port: Int): String =
         JSONObject()
             .put("model", Build.MODEL)
             .put("manufacturer", Build.MANUFACTURER)
             .put("android", Build.VERSION.RELEASE)
             .put("sdk", Build.VERSION.SDK_INT)
             .put("package", context.packageName)
+            .put("port", port)
             .toString()
 }

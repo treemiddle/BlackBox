@@ -1,6 +1,7 @@
 package com.treemiddle.blackbox.server
 
 import android.content.Context
+import android.util.Log
 import com.treemiddle.blackbox.capture.NetworkStore
 import com.treemiddle.blackbox.db.DbReader
 import com.treemiddle.blackbox.device.DeviceInfo
@@ -18,33 +19,56 @@ import io.ktor.server.response.respondText
 import io.ktor.server.routing.get
 import io.ktor.server.routing.post
 import io.ktor.server.routing.routing
+import java.io.IOException
+import java.net.InetAddress
+import java.net.InetSocketAddress
+import java.net.ServerSocket
 import org.json.JSONObject
 
 object BlackBoxServer {
 
     private const val HOST = "127.0.0.1"
-    private const val PORT = 8080
+    private const val PORT_START = 8080
+    private const val PORT_END = 8089
+    private const val HUB_PORT = 8080
+    private const val TAG = "BlackBoxServer"
 
     @Volatile
     private var started = false
 
     fun start(context: Context) {
         if (started) return
+
+        val port = firstAvailablePort()
+        if (port == null) {
+            Log.e(TAG, "BlackBox server not started: no free port in $PORT_START..$PORT_END")
+            return
+        }
         started = true
 
         val indexHtml = context.assets.open("devtools/index.html")
             .bufferedReader()
             .use { it.readText() }
+        val pickerHtml = context.assets.open("devtools/hub.html")
+            .bufferedReader()
+            .use { it.readText() }
 
         Thread(
             {
-                embeddedServer(CIO, host = HOST, port = PORT) {
+                val server = embeddedServer(CIO, host = HOST, port = port) {
                     routing {
-                        get("/") {
-                            call.respondText(indexHtml, ContentType.Text.Html)
+                        if (port == HUB_PORT) {
+                            get("/") {
+                                call.respondText(pickerHtml, ContentType.Text.Html)
+                            }
+                            installHub(port, indexHtml)
+                        } else {
+                            get("/") {
+                                call.respondText(indexHtml, ContentType.Text.Html)
+                            }
                         }
                         get("/api/device") {
-                            call.respondText(DeviceInfo.toJson(context), ContentType.Application.Json)
+                            call.respondText(DeviceInfo.toJson(context, port), ContentType.Application.Json)
                         }
                         get("/api/screenshot") {
                             val png = ScreenCapture.capturePng()
@@ -152,9 +176,35 @@ object BlackBoxServer {
                             }
                         }
                     }
-                }.start(wait = true)
+                }
+                try {
+                    Log.i(TAG, "BlackBox server started on $HOST:$port for ${context.packageName}")
+                    server.start(wait = true)
+                } catch (e: Exception) {
+                    started = false
+                    Log.e(TAG, "BlackBox server failed to bind $HOST:$port", e)
+                }
             },
             "BlackBoxServer",
         ).start()
     }
+
+    private fun firstAvailablePort(): Int? {
+        for (port in PORT_START..PORT_END) {
+            if (isPortAvailable(port)) {
+                return port
+            }
+        }
+        return null
+    }
+
+    private fun isPortAvailable(port: Int): Boolean =
+        try {
+            ServerSocket().use { socket ->
+                socket.bind(InetSocketAddress(InetAddress.getByName(HOST), port))
+                true
+            }
+        } catch (e: IOException) {
+            false
+        }
 }
