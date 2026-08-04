@@ -10,6 +10,7 @@ class BlackBoxInterceptor : Interceptor {
     override fun intercept(chain: Interceptor.Chain): Response {
         val request = chain.request()
         val requestBody = readRequestBody(request)
+        val timestamp = System.currentTimeMillis()
         val startedAt = System.nanoTime()
         val response = chain.proceed(request)
         val durationMs = (System.nanoTime() - startedAt) / 1_000_000
@@ -19,6 +20,7 @@ class BlackBoxInterceptor : Interceptor {
         NetworkStore.add(
             NetworkEntry(
                 id = NetworkStore.nextId(),
+                timestamp = timestamp,
                 method = request.method,
                 url = request.url.toString(),
                 code = response.code,

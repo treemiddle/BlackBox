@@ -35,6 +35,7 @@ object NetworkStore {
         snapshot.forEach { entry ->
             val obj = JSONObject()
             obj.put("id", entry.id)
+            obj.put("timestamp", entry.timestamp)
             obj.put("method", entry.method)
             obj.put("url", entry.url)
             obj.put("code", entry.code)

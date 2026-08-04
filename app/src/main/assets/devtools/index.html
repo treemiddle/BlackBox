@@ -46,6 +46,8 @@
 
     table.grid { width: 100%; border-collapse: collapse; }
     table.grid th { position: sticky; top: 0; background: #1e2229; text-align: left; padding: 8px 12px; color: #8a919e; font-weight: 600; border-bottom: 1px solid #2a2f38; font-size: 11px; text-transform: uppercase; letter-spacing: .03em; z-index: 1; }
+    table.grid th.sortable { cursor: pointer; user-select: none; }
+    table.grid th.sortable:hover { color: #d7dae0; }
     table.grid td { padding: 7px 12px; border-bottom: 1px solid #23272f; }
     table.net { table-layout: fixed; }
     table.net td { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -119,7 +121,7 @@
         <div class="split">
           <div class="list">
             <table class="grid net">
-              <thead><tr><th style="width:78px">Method</th><th style="width:64px">Status</th><th>URL</th><th style="width:78px">Time</th></tr></thead>
+              <thead><tr><th class="sortable" onclick="toggleSort()" style="width:104px">Time <span id="net-sort-ind">▼</span></th><th style="width:74px">Method</th><th style="width:60px">Status</th><th>URL</th><th style="width:78px">Duration</th></tr></thead>
               <tbody id="net-rows"></tbody>
             </table>
           </div>
@@ -163,6 +165,7 @@
     let filter = '';
     let lastSig = '';
     let lastDetailId = undefined;
+    let sortDir = 'desc';
 
     function esc(s) { return (s == null ? '' : String(s)).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
     function escA(s) { return esc(s).replace(/"/g, '&quot;'); }
@@ -170,6 +173,8 @@
     function mcolor(m) { return ({ GET: '#7bd88f', POST: '#ffd166', PUT: '#4c8bf5', DELETE: '#ff6b6b', PATCH: '#c792ea' })[m] || '#8a919e'; }
     function scolor(c) { if (c >= 500) return '#ff6b6b'; if (c >= 400) return '#ffb454'; if (c >= 300) return '#56b6c2'; return '#7bd88f'; }
     function sec(title, body) { return '<div class="sec"><div class="sec-title">' + title + '</div>' + body + '</div>'; }
+    function fmtTime(ts) { if (!ts) return ''; const d = new Date(ts); const p = (n, l) => String(n).padStart(l || 2, '0'); return p(d.getHours()) + ':' + p(d.getMinutes()) + ':' + p(d.getSeconds()) + '.' + p(d.getMilliseconds(), 3); }
+    function toggleSort() { sortDir = sortDir === 'desc' ? 'asc' : 'desc'; const ind = document.getElementById('net-sort-ind'); if (ind) { ind.textContent = sortDir === 'desc' ? '▼' : '▲'; } lastSig = ''; renderNetList(); }
 
     function showView(v) {
       view = v;
@@ -199,20 +204,22 @@
     }
 
     function renderNetList() {
-      const rows = filter ? netData.filter(e => e.url.toLowerCase().includes(filter)) : netData;
-      const sig = rows.map(e => e.id).join(',') + '|' + selectedId;
+      const rows = (filter ? netData.filter(e => e.url.toLowerCase().includes(filter)) : netData.slice())
+        .sort((a, b) => { const d = (a.timestamp || 0) - (b.timestamp || 0) || (a.id - b.id); return sortDir === 'asc' ? d : -d; });
+      const sig = rows.map(e => e.id).join(',') + '|' + selectedId + '|' + sortDir;
       if (sig === lastSig) return;
       lastSig = sig;
       let h = '';
       for (const e of rows) {
         h += '<tr class="r' + (e.id === selectedId ? ' sel' : '') + '" onclick="selectRow(' + e.id + ')">'
+          + '<td class="muted">' + fmtTime(e.timestamp) + '</td>'
           + '<td><span class="badge-m" style="color:' + mcolor(e.method) + '">' + e.method + '</span></td>'
           + '<td><span class="pill" style="color:' + scolor(e.code) + '">' + e.code + '</span></td>'
           + '<td class="url-cell">' + esc(e.url) + '</td>'
           + '<td class="muted">' + e.durationMs + ' ms</td>'
           + '</tr>';
       }
-      document.getElementById('net-rows').innerHTML = h || '<tr><td colspan="4" class="empty">No requests</td></tr>';
+      document.getElementById('net-rows').innerHTML = h || '<tr><td colspan="5" class="empty">No requests</td></tr>';
     }
 
     function selectRow(id) { selectedId = id; lastSig = ''; renderNetList(); renderNetDetail(); }
@@ -236,6 +243,7 @@
         + '<tr><td class="k">Method</td><td class="v" style="color:' + mcolor(e.method) + '">' + e.method + '</td></tr>'
         + '<tr><td class="k">Status</td><td class="v" style="color:' + scolor(e.code) + '">' + e.code + '</td></tr>'
         + '<tr><td class="k">Duration</td><td class="v">' + e.durationMs + ' ms</td></tr>'
+        + '<tr><td class="k">Time</td><td class="v">' + fmtTime(e.timestamp) + '</td></tr>'
         + '</table>');
       h += sec('Request Headers', headersTbl(e.requestHeaders));
       if (e.requestBody) h += sec('Request Body', '<pre class="body">' + esc(pretty(e.requestBody).slice(0, MAX)) + '</pre>');
