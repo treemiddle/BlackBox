@@ -192,6 +192,15 @@
     }
     function copyReqBody(btn) { const e = selectedEntry(); if (e) copyText(e.requestBody || '', btn); }
     function copyResBody(btn) { const e = selectedEntry(); if (e) copyText(e.responseBody || '', btn); }
+    function shq(s) { return "'" + String(s).replace(/'/g, "'\\''") + "'"; }
+    function buildCurl(e) {
+      let c = 'curl -X ' + e.method + ' ' + shq(e.url);
+      const hs = e.requestHeaders || {};
+      for (const k in hs) { c += " \\\n  -H " + shq(k + ': ' + hs[k]); }
+      if (e.requestBody) { c += " \\\n  --data " + shq(e.requestBody); }
+      return c;
+    }
+    function copyCurl(btn) { const e = selectedEntry(); if (e) copyText(buildCurl(e), btn); }
 
     function showView(v) {
       view = v;
@@ -261,7 +270,7 @@
         + '<tr><td class="k">Status</td><td class="v" style="color:' + scolor(e.code) + '">' + e.code + '</td></tr>'
         + '<tr><td class="k">Duration</td><td class="v">' + e.durationMs + ' ms</td></tr>'
         + '<tr><td class="k">Time</td><td class="v">' + fmtTime(e.timestamp) + '</td></tr>'
-        + '</table>');
+        + '</table>', '<button class="secbtn" onclick="copyCurl(this)">Copy as cURL</button>');
       h += sec('Request Headers', headersTbl(e.requestHeaders));
       if (e.requestBody) h += sec('Request Body', '<pre class="body">' + esc(pretty(e.requestBody).slice(0, MAX)) + '</pre>', '<button class="secbtn" onclick="copyReqBody(this)">Copy</button>');
       h += sec('Response Headers', headersTbl(e.responseHeaders));
