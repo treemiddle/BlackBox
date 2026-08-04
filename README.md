@@ -22,7 +22,8 @@ use with a pure-JVM, native-free approach:
 ## Features
 
 - 🌐 **Network** — OkHttp request/response capture (method, status, URL, timing,
-  headers, bodies) with JSON pretty-print, URL filter, and clear.
+  headers, bodies) with JSON pretty-print, URL filter, clear, sortable request
+  time (asc/desc), and one-click copy of a body or the request as a cURL command.
 - ⚙️ **Preferences** — every SharedPreferences file (key / value / type); edit or
   delete values (type-preserving).
 - 🗄️ **Databases** — browse SQLite/Room databases, tables, and rows (read-only)
@@ -62,7 +63,9 @@ open http://localhost:8080          # device selector appears at the top
 ```
 
 The proxy is adaptive: one device → that device directly; two or more → a device
-dropdown. New devices are detected automatically. No third-party Python deps.
+dropdown. New devices are detected automatically. No third-party Python deps. The
+proxy binds port 8080 itself and clears any stray `adb forward tcp:8080`, so run it
+*instead of* the one-device forward above — not both.
 
 **Multiple apps on one device** — just install and launch each. The first app binds
 `8080` and becomes the hub; the rest take `8081`–`8089`. Open `localhost:8080` and an
