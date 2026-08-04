@@ -61,7 +61,10 @@
 
     .empty { padding: 40px; text-align: center; color: #5c6672; }
     .sec { border-bottom: 1px solid #23272f; }
-    .sec-title { padding: 11px 14px 6px; color: #8a919e; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
+    .sec-title { padding: 11px 14px 6px; color: #8a919e; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+    .secbtn { background: #252b34; border: 1px solid #313945; color: #cfd4dc; border-radius: 5px; padding: 2px 8px; cursor: pointer; font-size: 11px; text-transform: none; letter-spacing: 0; font-weight: 600; }
+    .secbtn:hover { background: #2d353f; }
+    .secbtn.ok { border-color: #7bd88f; color: #7bd88f; }
     table.kv { width: 100%; border-collapse: collapse; font-size: 12px; }
     table.kv td { padding: 4px 14px; vertical-align: top; }
     table.kv td.k { color: #8a919e; white-space: nowrap; width: 1px; padding-right: 16px; font-family: ui-monospace, monospace; }
@@ -172,9 +175,23 @@
     function pretty(b) { if (!b) return ''; try { return JSON.stringify(JSON.parse(b), null, 2); } catch (e) { return b; } }
     function mcolor(m) { return ({ GET: '#7bd88f', POST: '#ffd166', PUT: '#4c8bf5', DELETE: '#ff6b6b', PATCH: '#c792ea' })[m] || '#8a919e'; }
     function scolor(c) { if (c >= 500) return '#ff6b6b'; if (c >= 400) return '#ffb454'; if (c >= 300) return '#56b6c2'; return '#7bd88f'; }
-    function sec(title, body) { return '<div class="sec"><div class="sec-title">' + title + '</div>' + body + '</div>'; }
+    function sec(title, body, actions) { return '<div class="sec"><div class="sec-title"><span>' + title + '</span>' + (actions || '') + '</div>' + body + '</div>'; }
     function fmtTime(ts) { if (!ts) return ''; const d = new Date(ts); const p = (n, l) => String(n).padStart(l || 2, '0'); return p(d.getHours()) + ':' + p(d.getMinutes()) + ':' + p(d.getSeconds()) + '.' + p(d.getMilliseconds(), 3); }
     function toggleSort() { sortDir = sortDir === 'desc' ? 'asc' : 'desc'; const ind = document.getElementById('net-sort-ind'); if (ind) { ind.textContent = sortDir === 'desc' ? '▼' : '▲'; } lastSig = ''; renderNetList(); }
+    function selectedEntry() { return netData.find(x => x.id === selectedId); }
+    function copyText(str, btn) {
+      const done = () => { if (!btn) return; const label = btn.dataset.label || btn.textContent; btn.dataset.label = label; btn.textContent = 'Copied!'; btn.classList.add('ok'); setTimeout(() => { btn.textContent = label; btn.classList.remove('ok'); }, 1200); };
+      if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(str).then(done).catch(() => fallbackCopy(str, done)); }
+      else { fallbackCopy(str, done); }
+    }
+    function fallbackCopy(str, done) {
+      const ta = document.createElement('textarea'); ta.value = str; ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta); ta.focus(); ta.select();
+      try { document.execCommand('copy'); if (done) done(); } catch (e) {}
+      ta.remove();
+    }
+    function copyReqBody(btn) { const e = selectedEntry(); if (e) copyText(e.requestBody || '', btn); }
+    function copyResBody(btn) { const e = selectedEntry(); if (e) copyText(e.responseBody || '', btn); }
 
     function showView(v) {
       view = v;
@@ -246,9 +263,9 @@
         + '<tr><td class="k">Time</td><td class="v">' + fmtTime(e.timestamp) + '</td></tr>'
         + '</table>');
       h += sec('Request Headers', headersTbl(e.requestHeaders));
-      if (e.requestBody) h += sec('Request Body', '<pre class="body">' + esc(pretty(e.requestBody).slice(0, MAX)) + '</pre>');
+      if (e.requestBody) h += sec('Request Body', '<pre class="body">' + esc(pretty(e.requestBody).slice(0, MAX)) + '</pre>', '<button class="secbtn" onclick="copyReqBody(this)">Copy</button>');
       h += sec('Response Headers', headersTbl(e.responseHeaders));
-      h += sec('Response Body', '<pre class="body">' + esc(pretty(e.responseBody).slice(0, MAX)) + '</pre>');
+      h += sec('Response Body', '<pre class="body">' + esc(pretty(e.responseBody).slice(0, MAX)) + '</pre>', '<button class="secbtn" onclick="copyResBody(this)">Copy</button>');
       el.innerHTML = h;
     }
 
