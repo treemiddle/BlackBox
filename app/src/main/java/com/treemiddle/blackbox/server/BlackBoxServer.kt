@@ -1,6 +1,7 @@
 package com.treemiddle.blackbox.server
 
 import android.content.Context
+import android.os.Process
 import android.util.Log
 import com.treemiddle.blackbox.capture.NetworkStore
 import com.treemiddle.blackbox.db.DbReader
@@ -71,10 +72,18 @@ object BlackBoxServer {
                             call.respondText(DeviceInfo.toJson(context, port), ContentType.Application.Json)
                         }
                         post("/api/shutdown") {
+                            if (port == HUB_PORT) {
+                                call.respondText(
+                                    JSONObject().put("ok", false).put("error", "hub app cannot be terminated").toString(),
+                                    ContentType.Application.Json,
+                                    HttpStatusCode.Forbidden,
+                                )
+                                return@post
+                            }
                             call.respondText(JSONObject().put("ok", true).toString(), ContentType.Application.Json)
                             Thread {
                                 Thread.sleep(150)
-                                android.os.Process.killProcess(android.os.Process.myPid())
+                                Process.killProcess(Process.myPid())
                             }.start()
                         }
                         get("/api/screenshot") {
