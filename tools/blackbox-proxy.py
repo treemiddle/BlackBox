@@ -13,17 +13,21 @@ iframe (/dev/<port>/) and its /api/* calls are reverse-proxied to that device.
 Usage:  python3 tools/blackbox-proxy.py   →   open http://localhost:8080
 No third-party dependencies (Python 3.7+ stdlib only).
 """
+import http.client
 import http.server
 import json
 import os
 import re
 import shutil
 import subprocess
-import urllib.request
+import threading
+import time
 
 DEVICE_PORT = int(os.environ.get("BLACKBOX_DEVICE_PORT", "8080"))
 PROXY_PORT = int(os.environ.get("BLACKBOX_PROXY_PORT", "8080"))
 BASE_LOCAL_PORT = int(os.environ.get("BLACKBOX_BASE_PORT", "8081"))
+REQUEST_TIMEOUT = int(os.environ.get("BLACKBOX_REQUEST_TIMEOUT", "4"))
+REFRESH_INTERVAL = int(os.environ.get("BLACKBOX_REFRESH_INTERVAL", "3"))
 
 ADB = (
     os.environ.get("ADB")
@@ -32,6 +36,9 @@ ADB = (
 )
 
 devices = {}  # serial -> {"model": str, "port": int}
+_devices_lock = threading.Lock()
+_pool_lock = threading.Lock()
+_pool = {}
 
 
 def adb(*args, timeout=10):
@@ -54,11 +61,13 @@ def connected_serials():
 
 def refresh_devices():
     serials = connected_serials()
-    used = {devices[s]["port"] for s in serials if s in devices}
+    with _devices_lock:
+        snapshot = dict(devices)
+    used = {snapshot[s]["port"] for s in serials if s in snapshot}
     next_port = BASE_LOCAL_PORT
     result = {}
     for serial in serials:
-        existing = devices.get(serial)
+        existing = snapshot.get(serial)
         if existing:
             port, model = existing["port"], existing["model"]
         else:
@@ -67,14 +76,24 @@ def refresh_devices():
             port = next_port
             used.add(port)
             model = adb("-s", serial, "shell", "getprop", "ro.product.model") or serial
+            adb("-s", serial, "shell", "settings", "put", "global", "cached_apps_freezer", "disabled")
         subprocess.run(
             [ADB, "-s", serial, "forward", f"tcp:{port}", f"tcp:{DEVICE_PORT}"],
             capture_output=True,
             timeout=10,
         )
         result[serial] = {"model": model, "port": port}
-    devices.clear()
-    devices.update(result)
+    with _devices_lock:
+        devices.clear()
+        devices.update(result)
+
+
+def devices_snapshot():
+    with _devices_lock:
+        return [
+            {"serial": s, "model": v["model"], "port": v["port"]}
+            for s, v in devices.items()
+        ]
 
 
 def free_proxy_port():
@@ -86,21 +105,56 @@ def free_proxy_port():
         )
 
 
+def _get_conn(port):
+    with _pool_lock:
+        bucket = _pool.get(port)
+        if bucket:
+            return bucket.pop(), True
+    return http.client.HTTPConnection("127.0.0.1", port, timeout=REQUEST_TIMEOUT), False
+
+
+def _put_conn(port, conn):
+    with _pool_lock:
+        _pool.setdefault(port, []).append(conn)
+
+
+def relay(port, method, path, body):
+    error = None
+    for _ in range(8):
+        conn, reused = _get_conn(port)
+        try:
+            conn.request(method, path, body=body)
+            response = conn.getresponse()
+            data = response.read()
+            ctype = response.getheader("Content-Type", "application/octet-stream")
+            status = response.status
+            _put_conn(port, conn)
+            return data, ctype, status
+        except Exception as err:
+            error = err
+            try:
+                conn.close()
+            except Exception:
+                pass
+            if not reused:
+                break
+    raise error
+
+
+def device_refresher():
+    while True:
+        refresh_devices()
+        time.sleep(REFRESH_INTERVAL)
+
+
 class Handler(http.server.BaseHTTPRequestHandler):
+    protocol_version = "HTTP/1.1"
+
     def do_GET(self):
         if self.path == "/":
             self._send(SHELL_HTML.encode(), "text/html; charset=utf-8")
         elif self.path == "/devices":
-            refresh_devices()
-            self._send(
-                json.dumps(
-                    [
-                        {"serial": s, "model": v["model"], "port": v["port"]}
-                        for s, v in devices.items()
-                    ]
-                ).encode(),
-                "application/json",
-            )
+            self._send(json.dumps(devices_snapshot()).encode(), "application/json")
         elif self.path.startswith("/dev/"):
             self._proxy("GET")
         else:
@@ -117,29 +171,30 @@ class Handler(http.server.BaseHTTPRequestHandler):
         if not match:
             self.send_error(404)
             return
-        port, rest = match.group(1), match.group(2)
+        port, rest = int(match.group(1)), match.group(2)
         body = None
         if method == "POST":
             length = int(self.headers.get("Content-Length", 0))
             body = self.rfile.read(length) if length else b""
-        request = urllib.request.Request(
-            f"http://127.0.0.1:{port}{rest}", data=body, method=method
-        )
         try:
-            with urllib.request.urlopen(request, timeout=15) as resp:
-                data = resp.read()
-                ctype = resp.headers.get("Content-Type", "application/octet-stream")
+            data, ctype, status = relay(port, method, rest, body)
         except Exception as error:
             self.send_error(502, str(error))
             return
-        self._send(data, ctype)
+        self._send(data, ctype, status)
 
-    def _send(self, data, ctype):
-        self.send_response(200)
+    def _send(self, data, ctype, status=200):
+        self.send_response(status)
         self.send_header("Content-Type", ctype)
         self.send_header("Content-Length", str(len(data)))
         self.end_headers()
         self.wfile.write(data)
+
+    def handle_one_request(self):
+        try:
+            super().handle_one_request()
+        except (ConnectionResetError, BrokenPipeError):
+            self.close_connection = True
 
     def log_message(self, *args):
         pass
@@ -223,6 +278,7 @@ def main():
         print(f"  {info['model']} ({serial}) → tcp:{info['port']}")
     if not devices:
         print("  (no devices connected yet)")
+    threading.Thread(target=device_refresher, daemon=True).start()
     http.server.ThreadingHTTPServer(("127.0.0.1", PROXY_PORT), Handler).serve_forever()
 
 
