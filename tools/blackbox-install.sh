@@ -24,6 +24,12 @@ case "${1:-install}" in
     fi
     exit 0
     ;;
+  install)
+    ;;
+  *)
+    echo "usage: $(basename "$0") {install|status|uninstall}" >&2
+    exit 1
+    ;;
 esac
 
 [ -f "$PROXY" ] || { echo "proxy not found: $PROXY" >&2; exit 1; }
