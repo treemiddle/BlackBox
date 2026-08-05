@@ -70,6 +70,13 @@ object BlackBoxServer {
                         get("/api/device") {
                             call.respondText(DeviceInfo.toJson(context, port), ContentType.Application.Json)
                         }
+                        post("/api/shutdown") {
+                            call.respondText(JSONObject().put("ok", true).toString(), ContentType.Application.Json)
+                            Thread {
+                                Thread.sleep(150)
+                                android.os.Process.killProcess(android.os.Process.myPid())
+                            }.start()
+                        }
                         get("/api/screenshot") {
                             val png = ScreenCapture.capturePng()
                             if (png == null) {

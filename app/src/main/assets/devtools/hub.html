@@ -25,6 +25,7 @@
     <span class="muted">App</span>
     <select id="app"></select>
     <button onclick="refresh()">&#8635;</button>
+    <button id="kill" onclick="dismiss()" title="Terminate selected app">&#10005;</button>
     <span class="muted" id="cnt"></span>
   </div>
   <iframe id="frame"></iframe>
@@ -35,6 +36,7 @@
     const frame = document.getElementById('frame');
     const empty = document.getElementById('empty');
     const cnt = document.getElementById('cnt');
+    const killBtn = document.getElementById('kill');
     let apps = [];
     let cur = null;
     let sig = '';
@@ -61,7 +63,17 @@
       if (!apps.some((a) => String(a.port) === String(cur))) { cur = apps[0].port; }
       appSel.innerHTML = apps.map((a) => '<option value="' + a.port + '">' + a.package + '</option>').join('');
       appSel.value = cur;
+      killBtn.style.display = String(cur) === '8080' ? 'none' : '';
       show(cur);
+    }
+
+    async function dismiss() {
+      if (!cur || String(cur) === '8080') { return; }
+      const port = cur;
+      try { await fetch('app/' + port + '/api/shutdown', { method: 'POST' }); } catch (e) {}
+      cur = null;
+      sig = '';
+      setTimeout(refresh, 400);
     }
 
     async function refresh() {
