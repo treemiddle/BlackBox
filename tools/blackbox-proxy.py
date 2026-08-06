@@ -77,11 +77,7 @@ def refresh_devices():
             used.add(port)
             model = adb("-s", serial, "shell", "getprop", "ro.product.model") or serial
             adb("-s", serial, "shell", "settings", "put", "global", "cached_apps_freezer", "disabled")
-        subprocess.run(
-            [ADB, "-s", serial, "forward", f"tcp:{port}", f"tcp:{DEVICE_PORT}"],
-            capture_output=True,
-            timeout=10,
-        )
+        adb("-s", serial, "forward", f"tcp:{port}", f"tcp:{DEVICE_PORT}")
         result[serial] = {"model": model, "port": port}
     with _devices_lock:
         devices.clear()
@@ -98,11 +94,7 @@ def devices_snapshot():
 
 def free_proxy_port():
     for serial in connected_serials():
-        subprocess.run(
-            [ADB, "-s", serial, "forward", "--remove", f"tcp:{PROXY_PORT}"],
-            capture_output=True,
-            timeout=5,
-        )
+        adb("-s", serial, "forward", "--remove", f"tcp:{PROXY_PORT}", timeout=5)
 
 
 def _get_conn(port):
@@ -143,7 +135,10 @@ def relay(port, method, path, body):
 
 def device_refresher():
     while True:
-        refresh_devices()
+        try:
+            refresh_devices()
+        except Exception:
+            pass
         time.sleep(REFRESH_INTERVAL)
 
 
