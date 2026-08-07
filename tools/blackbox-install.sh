@@ -8,6 +8,19 @@ DOMAIN="gui/$(id -u)"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROXY="$SCRIPT_DIR/blackbox-proxy.py"
+ADB_BIN="${ADB:-$(command -v adb || echo "$HOME/Library/Android/sdk/platform-tools/adb")}"
+
+reset_blackbox() {
+  launchctl bootout "$DOMAIN/$LABEL" 2>/dev/null || true
+  pkill -f "blackbox-proxy.py" 2>/dev/null || true
+  PIDS="$(lsof -nP -tiTCP:8080 -sTCP:LISTEN 2>/dev/null || true)"
+  [ -n "$PIDS" ] && kill -9 $PIDS 2>/dev/null || true
+  "$ADB_BIN" forward --remove-all 2>/dev/null || true
+  for _ in 1 2 3 4 5 6 7 8 9 10; do
+    lsof -nP -tiTCP:8080 -sTCP:LISTEN >/dev/null 2>&1 || break
+    sleep 0.3
+  done
+}
 
 case "${1:-install}" in
   uninstall|stop|remove)
@@ -24,10 +37,24 @@ case "${1:-install}" in
     fi
     exit 0
     ;;
+  restart|reset)
+    if [ "${2:-}" = "--hard" ]; then
+      "$ADB_BIN" kill-server >/dev/null 2>&1 || true
+      "$ADB_BIN" start-server >/dev/null 2>&1 || true
+    fi
+    reset_blackbox
+    if [ -f "$PLIST" ]; then
+      launchctl bootstrap "$DOMAIN" "$PLIST"
+      echo "BlackBox daemon restarted → http://localhost:8080"
+    else
+      echo "ports/forwards reset. daemon not installed — run: $(basename "$0") install"
+    fi
+    exit 0
+    ;;
   install)
     ;;
   *)
-    echo "usage: $(basename "$0") {install|status|uninstall}" >&2
+    echo "usage: $(basename "$0") {install|status|restart|uninstall}" >&2
     exit 1
     ;;
 esac
@@ -39,7 +66,6 @@ if /usr/bin/python3 -c 'import sys' >/dev/null 2>&1; then
 else
   PYTHON="$(command -v python3 || echo /usr/bin/python3)"
 fi
-ADB_BIN="${ADB:-$(command -v adb || echo "$HOME/Library/Android/sdk/platform-tools/adb")}"
 
 mkdir -p "$HOME/Library/LaunchAgents" "$HOME/Library/Logs"
 
@@ -68,7 +94,7 @@ cat > "$PLIST" <<PLIST_EOF
 </plist>
 PLIST_EOF
 
-launchctl bootout "$DOMAIN/$LABEL" 2>/dev/null || true
+reset_blackbox
 launchctl bootstrap "$DOMAIN" "$PLIST"
 
 echo "BlackBox daemon installed → http://localhost:8080"
