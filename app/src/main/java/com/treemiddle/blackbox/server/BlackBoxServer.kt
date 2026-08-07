@@ -3,6 +3,7 @@ package com.treemiddle.blackbox.server
 import android.content.Context
 import android.os.Process
 import android.util.Log
+import com.treemiddle.blackbox.capture.LogStore
 import com.treemiddle.blackbox.capture.NetworkStore
 import com.treemiddle.blackbox.db.DbReader
 import com.treemiddle.blackbox.device.DeviceInfo
@@ -126,6 +127,14 @@ object BlackBoxServer {
                         }
                         post("/api/network/clear") {
                             NetworkStore.clear()
+                            call.respondText(JSONObject().put("ok", true).toString(), ContentType.Application.Json)
+                        }
+                        get("/api/logs") {
+                            val since = call.request.queryParameters["since"]?.toLongOrNull() ?: 0L
+                            call.respondText(LogStore.toJson(since), ContentType.Application.Json)
+                        }
+                        post("/api/logs/clear") {
+                            LogStore.clear()
                             call.respondText(JSONObject().put("ok", true).toString(), ContentType.Application.Json)
                         }
                         get("/api/prefs") {

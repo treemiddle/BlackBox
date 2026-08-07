@@ -59,6 +59,21 @@
     .pill { display: inline-block; font-size: 12px; font-weight: 700; }
     .url-cell { color: #c2c8d2; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
 
+    select.level { background: #12141a; color: #d7dae0; border: 1px solid #2a2f38; border-radius: 7px; padding: 5px 8px; font-size: 12px; outline: none; }
+    select.level:focus { border-color: #4c8bf5; }
+    table.logs { table-layout: fixed; }
+    table.logs td { padding: 4px 12px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; line-height: 1.45; vertical-align: top; }
+    table.logs tr.lw td { background: rgba(255, 180, 84, 0.07); }
+    table.logs tr.le td { background: rgba(255, 107, 107, 0.09); }
+    table.logs td.time, table.logs td.pid { color: #6b7482; white-space: nowrap; }
+    table.logs td.level { text-align: center; }
+    table.logs td.msg { white-space: pre-wrap; word-break: break-word; color: #c2c8d2; }
+    table.logs td.tag { color: #8a919e; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    table.logs .lvbadge { display: inline-block; min-width: 16px; text-align: center; font-weight: 700; font-size: 11px; padding: 1px 6px; border-radius: 5px; }
+    table.logs.compact td.time, table.logs.compact th.time,
+    table.logs.compact td.pid, table.logs.compact th.pid,
+    table.logs.compact td.tag, table.logs.compact th.tag { display: none; }
+
     .empty { padding: 40px; text-align: center; color: #5c6672; }
     .sec { border-bottom: 1px solid #23272f; }
     .sec-title { padding: 11px 14px 6px; color: #8a919e; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
@@ -104,6 +119,7 @@
         <div class="nav-item active" id="nav-network" onclick="showView('network')"><span class="ico">🌐</span> Network <span class="badge" id="net-badge">0</span></div>
         <div class="nav-item" id="nav-prefs" onclick="showView('prefs')"><span class="ico">⚙️</span> Preferences</div>
         <div class="nav-item" id="nav-db" onclick="showView('db')"><span class="ico">🗄️</span> Databases</div>
+        <div class="nav-item" id="nav-logs" onclick="showView('logs')"><span class="ico">📋</span> Logcat</div>
       </div>
       <div class="cap">
         <button class="capbtn" onclick="screenshot()">📷 Screenshot</button>
@@ -157,6 +173,31 @@
           <div class="dbmain" id="db-main"><div class="empty">Select a table</div></div>
         </div>
       </div>
+
+      <div class="view" id="view-logs">
+        <div class="toolbar">
+          <span class="tb-title">Logcat</span>
+          <select class="level" id="log-level" onchange="onLogLevel(this.value)">
+            <option value="V">Verbose</option>
+            <option value="D">Debug</option>
+            <option value="I">Info</option>
+            <option value="W">Warn</option>
+            <option value="E">Error</option>
+          </select>
+          <input class="search" id="log-filter" placeholder="Filter tag / message…" oninput="onLogFilter(this.value)">
+          <button class="tbtnx" onclick="clearLogs()">Clear</button>
+          <button class="tbtnx" id="log-pause" onclick="togglePause()">⏸ Pause</button>
+          <button class="tbtnx" id="log-compact" onclick="toggleCompact()">Compact</button>
+          <span class="spacer"></span>
+          <span class="muted" id="log-count"></span>
+        </div>
+        <div class="list" id="log-list">
+          <table class="grid logs">
+            <thead><tr><th class="time" style="width:104px">Time</th><th class="pid" style="width:82px">PID-TID</th><th style="width:56px">Level</th><th class="tag" style="width:160px">Tag</th><th>Message</th></tr></thead>
+            <tbody id="log-rows"></tbody>
+          </table>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -204,13 +245,14 @@
 
     function showView(v) {
       view = v;
-      for (const x of ['network', 'prefs', 'db']) {
+      for (const x of ['network', 'prefs', 'db', 'logs']) {
         document.getElementById('view-' + x).classList.toggle('active', x === v);
         document.getElementById('nav-' + x).classList.toggle('active', x === v);
       }
       if (v === 'network') tickNetwork();
       else if (v === 'prefs') tickPrefs();
-      else tickDb();
+      else if (v === 'db') tickDb();
+      else tickLogs();
     }
 
     function onFilter(val) { filter = val.toLowerCase(); lastSig = ''; renderNetList(); }
@@ -351,6 +393,75 @@
       el.innerHTML = h;
     }
 
+    let logsData = [];
+    let logFilter = '';
+    let logLevel = 'V';
+    let logLastId = 0;
+    let logPaused = false;
+    let logCompact = false;
+    let logSig = '';
+    let logGen = 0;
+    const LOG_MAX = 5000;
+    const LEVEL_RANK = { V: 0, D: 1, I: 2, W: 3, E: 4, F: 5, A: 6 };
+    function levelColor(l) { return ({ V: '#6b7482', D: '#4c8bf5', I: '#7bd88f', W: '#ffb454', E: '#ff6b6b', F: '#ff6b6b', A: '#ff6b6b' })[l] || '#8a919e'; }
+    function levelRowClass(l) { return l === 'W' ? 'lw' : (l === 'E' || l === 'F' || l === 'A') ? 'le' : ''; }
+    function msgColor(l) { return l === 'W' ? '#ffd18a' : (l === 'E' || l === 'F' || l === 'A') ? '#ff9a9a' : '#c2c8d2'; }
+    function toggleCompact() {
+      logCompact = !logCompact;
+      document.getElementById('log-compact').classList.toggle('on', logCompact);
+      document.querySelector('table.logs').classList.toggle('compact', logCompact);
+    }
+    function onLogFilter(val) { logFilter = val.toLowerCase(); logSig = ''; renderLogs(); }
+    function onLogLevel(val) { logLevel = val; logSig = ''; renderLogs(); }
+    function togglePause() {
+      logPaused = !logPaused;
+      const btn = document.getElementById('log-pause');
+      btn.textContent = logPaused ? '▶ Resume' : '⏸ Pause';
+      btn.classList.toggle('on', logPaused);
+      if (!logPaused) { tickLogs(); }
+    }
+    async function clearLogs() {
+      logGen++;
+      try { await fetch('api/logs/clear', { method: 'POST' }); } catch (e) {}
+      logsData = []; logLastId = 0; logSig = ''; renderLogs();
+      document.getElementById('log-count').textContent = '0 lines';
+    }
+    async function tickLogs() {
+      if (logPaused) return;
+      const gen = logGen;
+      let data;
+      try { data = await (await fetch('api/logs?since=' + logLastId)).json(); } catch (e) { return; }
+      if (gen !== logGen) return;
+      if (data.length) {
+        logsData = logsData.concat(data);
+        if (logsData.length > LOG_MAX) logsData = logsData.slice(-LOG_MAX);
+        logLastId = logsData[logsData.length - 1].id;
+      }
+      document.getElementById('log-count').textContent = logsData.length + ' lines';
+      renderLogs();
+    }
+    function renderLogs() {
+      const min = LEVEL_RANK[logLevel] || 0;
+      const rows = logsData.filter(e => (LEVEL_RANK[e.level] || 0) >= min
+        && (!logFilter || (e.tag + ' ' + e.message).toLowerCase().includes(logFilter)));
+      const sig = (rows.length ? rows[rows.length - 1].id : 0) + ':' + rows.length + '|' + logLevel + '|' + logFilter;
+      if (sig === logSig) return;
+      logSig = sig;
+      let h = '';
+      for (const e of rows) {
+        const c = levelColor(e.level);
+        h += '<tr class="' + levelRowClass(e.level) + '">'
+          + '<td class="time">' + esc(e.time) + '</td>'
+          + '<td class="pid">' + e.pid + '-' + e.tid + '</td>'
+          + '<td class="level"><span class="lvbadge" style="color:' + c + ';background:' + c + '22">' + esc(e.level) + '</span></td>'
+          + '<td class="tag">' + esc(e.tag) + '</td>'
+          + '<td class="msg" style="color:' + msgColor(e.level) + '">' + esc(e.message) + '</td>'
+          + '</tr>';
+      }
+      document.getElementById('log-rows').innerHTML = h || '<tr><td colspan="5" class="empty">No logs</td></tr>';
+      if (!logPaused) { const l = document.getElementById('log-list'); l.scrollTop = l.scrollHeight; }
+    }
+
     async function loadDevice() {
       try {
         const d = await (await fetch('api/device')).json();
@@ -454,12 +565,13 @@
     initResizer('db-resizer', 'db-side', 'left', 160);
 
     setInterval(() => { if (view === 'network') tickNetwork(); }, 1000);
+    setInterval(() => { if (view === 'logs') tickLogs(); }, 1000);
     setInterval(() => { if (view === 'db' && dbLive && dbCurrent) loadTable(dbCurrent.db, dbCurrent.table); }, 1500);
     setInterval(recTick, 1500);
     loadDevice();
     recTick();
     const initialTab = (location.hash || '').slice(1);
-    showView(['network', 'prefs', 'db'].includes(initialTab) ? initialTab : 'network');
+    showView(['network', 'prefs', 'db', 'logs'].includes(initialTab) ? initialTab : 'network');
   </script>
 </body>
 </html>
